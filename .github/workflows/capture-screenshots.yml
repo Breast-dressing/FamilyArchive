@@ -1,0 +1,34 @@
+name: Capture Screenshots
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  screenshots:
+    runs-on: xcode-27
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show toolchain and simulators
+        run: |
+          xcodebuild -version
+          xcrun simctl list devices available | sed -n '1,80p'
+          xcrun simctl help pbcopy || true
+
+      - name: Capture screenshots
+        run: bash scripts/capture-screenshots.sh
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-screenshots
+          path: |
+            artifacts/screenshots/
+            artifacts/screenshots-*.zip
+          if-no-files-found: warn
+          retention-days: 14

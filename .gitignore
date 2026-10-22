@@ -23,3 +23,8 @@ FamilyArchive.zip
 *.key
 .env
 .env.*
+
+# CI artifacts and unsigned build outputs
+*.ipa
+*.xcarchive
+artifacts/
