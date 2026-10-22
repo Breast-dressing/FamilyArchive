@@ -19,6 +19,11 @@
 #   07 Family detail (reached through the real + -> Family flow with a sample URL)
 #   08 + placeholder on Feed
 #
+# XcodeBuildMCP taps only accept element refs that appear in the snapshot's
+# `targets` list with a tap action; text-only rows are not tappable. The helpers
+# below enforce that so navigation never silently taps a label instead of a
+# control.
+#
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -33,6 +38,7 @@ MCP_VERSION="${MCP_VERSION:-2.7.0}"
 
 TS="$(date -u +%Y%m%dT%H%M%SZ)"
 OUT_DIR="$ROOT/artifacts/screenshots/$TS"
+SNAP_DIR="$OUT_DIR/snapshots"
 ZIP_PATH="$ROOT/artifacts/screenshots-$TS.zip"
 BUILD_DIR="$ROOT/build/screenshots"
 DERIVED_DATA="$BUILD_DIR/DerivedData"
@@ -40,8 +46,9 @@ APP_PATH="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/$SCHEME.app"
 SNAP="$(mktemp)"
 MCP=(npx --yes "xcodebuildmcp@$MCP_VERSION" ui-automation)
 FAILED=()
+SNAP_COUNT=0
 
-mkdir -p "$OUT_DIR" "$BUILD_DIR"
+mkdir -p "$OUT_DIR" "$SNAP_DIR" "$BUILD_DIR"
 cleanup() { rm -f "$SNAP"; }
 trap cleanup EXIT
 
@@ -108,23 +115,59 @@ xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP_PATH"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
-"${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
+run_with_timeout 90 "${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-snapshot() {
-  "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json \
-    > "$SNAP" 2>>"$OUT_DIR/mcp.log"
+# Run a command with a hard timeout. The macOS runner does not ship GNU
+# `timeout`, so use a tiny Python wrapper and kill the whole process group on
+# timeout (npx can leave a node child behind otherwise).
+run_with_timeout() {
+  local secs="$1"
+  shift
+  python3 - "$secs" "$@" <<'PY'
+import os
+import signal
+import subprocess
+import sys
+
+secs = float(sys.argv[1])
+cmd = sys.argv[2:]
+process = subprocess.Popen(cmd, start_new_session=True)
+try:
+    rc = process.wait(timeout=secs)
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+    raise SystemExit(124)
+raise SystemExit(rc)
+PY
 }
 
+snapshot() {
+  run_with_timeout 60 "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json \
+    > "$SNAP" 2>>"$OUT_DIR/mcp.log" || return 1
+  SNAP_COUNT=$((SNAP_COUNT + 1))
+  cp "$SNAP" "$SNAP_DIR/$(printf '%03d' "$SNAP_COUNT").json" 2>/dev/null || true
+  return 0
+}
+
+# find_ref <label> [any|tap|tab]
+#   tap: only entries from the snapshot targets list (the MCP tap tool rejects
+#        text-only refs).
+#   tab: only targets whose element type is "tab" (avoids a toolbar button that
+#        shares a label with a tab, e.g. the "More" toolbar item).
 find_ref() {
-  python3 - "$SNAP" "$1" <<'PY'
+  python3 - "$SNAP" "$1" "${2:-any}" <<'PY'
 import json
 import sys
 
-path, want = sys.argv[1], sys.argv[2]
+path, want, mode = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     data = json.load(open(path))
 except Exception:
@@ -136,6 +179,10 @@ for kind in ("targets", "text"):
     for line in capture.get(kind, []) or []:
         parts = line.split("|")
         if len(parts) < 4:
+            continue
+        if mode == "tap" and kind != "targets":
+            continue
+        if mode == "tab" and (kind != "targets" or parts[2] != "tab"):
             continue
         label = parts[3].strip()
         entries.append((0 if kind == "targets" else 1, parts[0], label))
@@ -160,7 +207,7 @@ wait_for() {
   local tries="${2:-45}"
   local i
   for ((i = 0; i < tries; i++)); do
-    if snapshot && find_ref "$label" >/dev/null; then
+    if snapshot && find_ref "$label" any >/dev/null; then
       return 0
     fi
     sleep 1
@@ -170,16 +217,21 @@ wait_for() {
 
 tap_label() {
   local label="$1"
+  local mode="${2:-tap}"
   local i ref
   for ((i = 0; i < 3; i++)); do
-    if snapshot && ref=$(find_ref "$label"); then
-      if "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1; then
+    if snapshot && ref=$(find_ref "$label" "$mode"); then
+      if run_with_timeout 30 "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1; then
         return 0
       fi
     fi
     sleep 1
   done
   return 1
+}
+
+tap_tab() {
+  tap_label "$1" tab
 }
 
 shot() {
@@ -200,7 +252,8 @@ record_failure() {
 capture_page() {
   local file="$1"
   local label="$2"
-  if wait_for "$label" 90; then
+  local tries="${3:-45}"
+  if wait_for "$label" "$tries"; then
     shot "$file" || record_failure "$file"
   else
     record_failure "$file (missing '$label')"
@@ -209,16 +262,16 @@ capture_page() {
 
 handle_paste_prompt() {
   local i ref prompt
-  for ((i = 0; i < 25; i++)); do
+  for ((i = 0; i < 12; i++)); do
     if snapshot; then
       for prompt in "Allow Paste" "Allow" "允许粘贴"; do
-        if ref=$(find_ref "$prompt"); then
+        if ref=$(find_ref "$prompt" tap); then
           echo "    paste prompt: tapping '$prompt'"
-          "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1 || true
+          run_with_timeout 30 "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1 || true
           return 0
         fi
       done
-      if find_ref "987654321" >/dev/null; then
+      if find_ref "987654321" tap >/dev/null; then
         return 0
       fi
     fi
@@ -232,42 +285,42 @@ handle_paste_prompt() {
 # ---------------------------------------------------------------------------
 
 echo "==> 01 Feed"
-capture_page "01-feed" "The Feed page"
+capture_page "01-feed" "The Feed page" 60
 
 echo "==> 02 Video"
-if tap_label "Video"; then
+if tap_tab "Video"; then
   capture_page "02-video" "The Video page"
 else
   record_failure "02-video (Video tab tap failed)"
 fi
 
 echo "==> 03 Music"
-if tap_label "Music"; then
+if tap_tab "Music"; then
   capture_page "03-music" "Switch to Archive"
 else
   record_failure "03-music (Music tab tap failed)"
 fi
 
 echo "==> 04 Archive"
-if tap_label "Archive"; then
-  capture_page "04-archive" "Badges"
+if tap_label "Archive" tap; then
+  capture_page "04-archive" "No badges yet"
 else
   record_failure "04-archive (Archive segment tap failed)"
 fi
 
 echo "==> 05 More"
-if tap_label "More"; then
+if tap_tab "More"; then
   capture_page "05-more" "The More page"
 else
   record_failure "05-more (More tab tap failed)"
 fi
 
 echo "==> 06 + options on Archive"
-if tap_label "Music"; then
-  if ! wait_for "Badges" 30; then
-    tap_label "Archive" || true
+if tap_tab "Music"; then
+  if ! wait_for "No badges yet" 15; then
+    tap_label "Archive" tap || true
   fi
-  if tap_label "＋"; then
+  if tap_tab "＋"; then
     capture_page "06-plus-archive" "Done"
   else
     record_failure "06-plus-archive (plus tab tap failed)"
@@ -283,10 +336,14 @@ if ! xcrun simctl pbcopy "$UDID" < "$OUT_DIR/family-url.txt" 2>/dev/null; then
   xcrun simctl pbcopy "$UDID" "$OUT_DIR/family-url.txt" || true
 fi
 
-if tap_label "Family"; then
+if tap_label "Family" tap; then
+  sleep 1
+  shot "diag-family-1s" || true
   handle_paste_prompt || true
-  if wait_for "987654321" 120; then
-    if tap_label "987654321"; then
+  sleep 2
+  shot "diag-family-3s" || true
+  if wait_for "987654321" 60; then
+    if tap_label "987654321" tap; then
       capture_page "07-family-detail" "records"
     else
       record_failure "07-family-detail (family row tap failed)"
@@ -301,8 +358,8 @@ fi
 echo "==> 08 + placeholder on Feed"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 xcrun simctl launch "$UDID" "$BUNDLE_ID" >/dev/null
-if wait_for "The Feed page" 90; then
-  if tap_label "＋"; then
+if wait_for "The Feed page" 60; then
+  if tap_tab "＋"; then
     capture_page "08-plus-placeholder" "No actions here"
   else
     record_failure "08-plus-placeholder (plus tab tap failed)"
