@@ -20,17 +20,8 @@ jobs:
           xcrun simctl help pbpaste || true
           xcrun simctl help privacy | sed -n '1,160p' || true
 
-          UDID="$(xcrun simctl list devices available --json | python3 -c '
-import json, sys
-data = json.load(sys.stdin)["devices"]
-for runtime, devices in data.items():
-    if "iOS-27-0" in runtime:
-        for device in devices:
-            if device["name"] == "iPhone 18 Pro":
-                print(device["udid"])
-                raise SystemExit(0)
-raise SystemExit(1)
-')"
+          UDID="$(xcrun simctl list devices available | grep "iPhone 18 Pro (" | head -n 1 | awk -F'[()]' '{print $2}')"
+          test -n "$UDID"
           echo "UDID=$UDID"
           xcrun simctl boot "$UDID" 2>/dev/null || true
           xcrun simctl bootstatus "$UDID" -b
