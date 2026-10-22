@@ -26,9 +26,9 @@ concurrency:
 
 jobs:
   test:
-    # Pinned to the fork that only changes runs-on: macos-26 -> xcode-27.
-    # Fork of ios-ci-workflows main @ a04bf44 (v1.1.0 era) + xcode-27 runner.
-    uses: Breast-dressing/ios-ci-workflows/.github/workflows/build-test.yml@55c453d7d39ece0fd3769875c7a98a233ffbaa57
+    # Pinned to the fork with two Xcode 27 fixes: the xcode-27 runner and a
+    # simulator boot before launch evidence. Based on ios-ci-workflows @ a04bf44.
+    uses: Breast-dressing/ios-ci-workflows/.github/workflows/build-test.yml@e9a521bcd653155548d733afe7d172918a7f959e
     with:
       suite: ${{ inputs.suite || '' }}
       record_snapshots: ${{ inputs.record_snapshots || false }}
