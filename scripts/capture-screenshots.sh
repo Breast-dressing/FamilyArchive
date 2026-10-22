@@ -69,13 +69,17 @@ if [[ ! -d "$APP_PATH" ]]; then
 fi
 
 echo "==> Resolving simulator: $DEVICE_NAME / iOS $IOS_VERSION"
-UDID="$(xcrun simctl list devices available --json | python3 - "$DEVICE_NAME" "$IOS_VERSION" <<'PY'
+SIM_JSON="$OUT_DIR/simctl-devices.json"
+UDID=""
+for attempt in 1 2 3 4 5; do
+  if xcrun simctl list devices available --json > "$SIM_JSON" 2>"$OUT_DIR/simctl.err" && [[ -s "$SIM_JSON" ]]; then
+    UDID="$(python3 - "$SIM_JSON" "$DEVICE_NAME" "$IOS_VERSION" <<'PY'
 import json
 import sys
 
-name, version = sys.argv[1], sys.argv[2]
+path, name, version = sys.argv[1], sys.argv[2], sys.argv[3]
 label = "iOS-" + version.replace(".", "-")
-devices_by_runtime = json.load(sys.stdin)["devices"]
+devices_by_runtime = json.load(open(path))["devices"]
 for runtime, devices in devices_by_runtime.items():
     runtime_label = runtime.rsplit(".", 1)[-1]
     if runtime_label == label or runtime_label.startswith(label + "-"):
@@ -83,9 +87,20 @@ for runtime, devices in devices_by_runtime.items():
             if device["name"] == name:
                 print(device["udid"])
                 raise SystemExit(0)
-raise SystemExit("simulator not found: %s / iOS %s" % (name, version))
+raise SystemExit(1)
 PY
-)"
+)" || true
+    if [[ -n "$UDID" ]]; then break; fi
+  fi
+  echo "    CoreSimulator not ready (attempt $attempt); retrying..."
+  sleep 5
+done
+if [[ -z "$UDID" ]]; then
+  echo "error: simulator not found: $DEVICE_NAME / iOS $IOS_VERSION" >&2
+  cat "$OUT_DIR/simctl.err" >&2 || true
+  xcrun simctl list devices available 2>&1 | sed -n '1,80p' >&2 || true
+  exit 1
+fi
 echo "    UDID: $UDID"
 
 xcrun simctl boot "$UDID" 2>/dev/null || true
