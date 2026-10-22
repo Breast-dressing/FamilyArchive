@@ -1,0 +1,34 @@
+name: Build & Test
+
+on:
+  push:
+    paths-ignore: ['**/*.md', 'docs/**']
+  pull_request:
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "full 跑整个 scheme；fast/ui 需要先配置对应的 test plan"
+        type: choice
+        options: [fast, ui, full]
+        default: full
+      record_snapshots:
+        description: 重新录制快照参考图（本项目暂无快照测试）
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-test-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    # Pinned to the fork that only changes runs-on: macos-26 -> xcode-27.
+    # Fork of ios-ci-workflows main @ a04bf44 (v1.1.0 era) + xcode-27 runner.
+    uses: Breast-dressing/ios-ci-workflows/.github/workflows/build-test.yml@55c453d7d39ece0fd3769875c7a98a233ffbaa57
+    with:
+      suite: ${{ inputs.suite || '' }}
+      record_snapshots: ${{ inputs.record_snapshots || false }}

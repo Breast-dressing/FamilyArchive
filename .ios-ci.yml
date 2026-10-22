@@ -1,0 +1,25 @@
+# ios-ci-workflows 的 App 配置（Level 1: Build & Test）。
+# 只写要覆盖默认值的键；完整说明见 ios-ci-workflows 的 docs/config.md。
+
+workdir: FamilyArchive
+project: FamilyArchive.xcodeproj
+scheme: FamilyArchive
+bundle_id: com.example.FamilyArchive
+display_name: ''
+sync_command: 'true'
+generate_command: 'true'
+icon_path: ''
+
+# 工具链显式固定：xcode-27 runner 镜像自带 Xcode 27.0 和 iOS 27.0 模拟器。
+toolchain:
+  xcode: '27.0'
+  simulator: 'iPhone 18 Pro'
+  ios: '27.0'
+
+build_test:
+  test_plan: ''                 # 没有 .xctestplan；xcodebuild test 走 scheme 的 Testables
+  fast_test_plan: ''
+  full_test_plan: ''
+  ui_test_target: ''
+  accessibility_audit: warn
+  commit_recorded_snapshots: false

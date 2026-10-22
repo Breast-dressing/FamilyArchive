@@ -1,0 +1,25 @@
+# Xcode build products and user state
+build/
+DerivedData/
+.build-test-derived-data/
+*.xcresult
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+
+# macOS
+.DS_Store
+
+# Local archive of the project (not part of the repo)
+FamilyArchive.zip
+
+# Signing / secrets: never commit these
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+*.key
+.env
+.env.*
