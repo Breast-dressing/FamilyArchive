@@ -1,49 +1,14 @@
-//
-//  PlaceholderViews.swift
-//  FamilyArchive
-//
-//  Feed / Video / More / Music content is freely designed by the
-//  specification. These pages are intentionally minimal and do not affect the
-//  required interactions.
-//
-
 import SwiftUI
-
-struct FeedView: View {
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView(
-                "Feed",
-                systemImage: "square.stack",
-                description: Text("The Feed page is not part of this build.")
-            )
-            .navigationTitle("Feed")
-        }
-    }
-}
-
-struct VideoView: View {
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView(
-                "Video",
-                systemImage: "play.rectangle",
-                description: Text("The Video page is not part of this build.")
-            )
-            .navigationTitle("Video")
-        }
-    }
-}
 
 struct MoreView: View {
     var body: some View {
         NavigationStack {
             ContentUnavailableView(
-                "More",
+                "更多",
                 systemImage: "ellipsis.circle",
-                description: Text("The More page is not part of this build.")
+                description: Text("更多功能正在准备中。")
             )
-            .navigationTitle("More")
+            .navigationTitle("更多")
         }
     }
 }
@@ -51,9 +16,9 @@ struct MoreView: View {
 struct MusicHomeView: View {
     var body: some View {
         ContentUnavailableView(
-            "Music",
+            "音乐",
             systemImage: "music.note",
-            description: Text("Switch to Archive to manage families and import HAR files.")
+            description: Text("切换到“档案”管理家族并导入家族记录文件。")
         )
     }
 }

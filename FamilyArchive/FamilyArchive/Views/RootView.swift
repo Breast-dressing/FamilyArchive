@@ -2,11 +2,10 @@
 //  RootView.swift
 //  FamilyArchive
 //
-//  The native bottom tab bar. The "＋" item is a real tab item declared with
+//  Native bottom tab bar. The "＋" item is a real tab item declared with
 //  `role: .prominent`, which the system places in a separate trailing position
-//  of the tab bar (the detached tab item on iOS 27). Its selection is
-//  intercepted, so tapping it never switches tabs and never shows a page: it
-//  only presents an option list that depends on the current page.
+//  of the tab bar. Its selection is intercepted, so tapping it never switches
+//  tabs: it presents the action that belongs to the current page.
 //
 
 import Foundation
@@ -24,27 +23,37 @@ struct AppMessage: Identifiable {
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var router = AppRouter()
+    @State private var pendingImports = PendingImportStore()
 
-    @State private var importTargetFamilyURL: String?
-    @State private var isImporterPresented = false
+    @State private var filePickerPurpose: FilePickerPurpose?
+    @State private var isFilePickerPresented = false
     @State private var isImportingHAR = false
     @State private var message: AppMessage?
 
+    @State private var isFeedComposerPresented = false
+    @State private var isVideoComposerPresented = false
+    @State private var videoComposerFiles: [URL] = []
+
+    private enum FilePickerPurpose {
+        case har(familyURL: String)
+        case video
+    }
+
     var body: some View {
         TabView(selection: tabSelection) {
-            Tab("Feed", systemImage: "square.stack", value: RootTab.feed) {
+            Tab("动态", systemImage: "square.stack", value: RootTab.feed) {
                 FeedView()
             }
 
-            Tab("Video", systemImage: "play.rectangle", value: RootTab.video) {
+            Tab("影视", systemImage: "play.rectangle", value: RootTab.video) {
                 VideoView()
             }
 
-            Tab("Music", systemImage: "music.note", value: RootTab.music) {
+            Tab("音乐", systemImage: "music.note", value: RootTab.music) {
                 MusicRootView()
             }
 
-            Tab("More", systemImage: "ellipsis", value: RootTab.more) {
+            Tab("更多", systemImage: "ellipsis", value: RootTab.more) {
                 MoreView()
             }
 
@@ -53,11 +62,11 @@ struct RootView: View {
                 EmptyView()
             }
         }
+        .tint(.blue)
         .environment(router)
+        .environment(pendingImports)
+        .environment(\.locale, Locale(identifier: "zh_CN"))
         .onChange(of: router.selectedTab) { previousTab, newTab in
-            // Defensive fallback: if the platform ever applies the detached
-            // tab's selection without going through the interception above,
-            // put the selection back and open the options anyway.
             guard newTab == .plus else { return }
             router.selectedTab = previousTab
             handlePlusButtonTapped()
@@ -67,15 +76,21 @@ struct RootView: View {
                 handleArchiveAction(action)
             }
         }
+        .sheet(isPresented: $isFeedComposerPresented) {
+            FeedComposerView()
+        }
+        .sheet(isPresented: $isVideoComposerPresented) {
+            VideoComposerView(files: videoComposerFiles)
+        }
         .fileImporter(
-            isPresented: $isImporterPresented,
-            allowedContentTypes: Self.harPickerTypes,
+            isPresented: $isFilePickerPresented,
+            allowedContentTypes: [.data],
             allowsMultipleSelection: true
         ) { result in
             handleFileSelection(result)
         }
         .alert(messageTitle, isPresented: messageIsPresented) {
-            Button("OK", role: .cancel) {
+            Button("好", role: .cancel) {
                 message = nil
             }
         } message: {
@@ -90,9 +105,6 @@ struct RootView: View {
 
     // MARK: - Tab selection
 
-    /// Tapping "＋" writes `.plus` into this binding. The setter intercepts that
-    /// value, presents the page-specific options instead, and leaves
-    /// `selectedTab` untouched, so no tab switch ever happens.
     private var tabSelection: Binding<RootTab> {
         Binding(
             get: { router.selectedTab },
@@ -112,21 +124,20 @@ struct RootView: View {
         switch router.selectedTab {
         case .music:
             if let familyURL = router.musicPath.last {
-                // Family detail page: "＋" picks HAR files for this family.
-                importTargetFamilyURL = familyURL
-                isImporterPresented = true
+                filePickerPurpose = .har(familyURL: familyURL)
+                isFilePickerPresented = true
             } else if router.musicSection == .archive {
-                // Music -> Archive: the four archive actions.
                 router.plusRoute = .archiveActions
             } else {
-                router.plusRoute = .unavailable(pageName: "Music")
+                router.plusRoute = .unavailable(pageName: "音乐")
             }
         case .feed:
-            router.plusRoute = .unavailable(pageName: "Feed")
+            isFeedComposerPresented = true
         case .video:
-            router.plusRoute = .unavailable(pageName: "Video")
+            filePickerPurpose = .video
+            isFilePickerPresented = true
         case .more:
-            router.plusRoute = .unavailable(pageName: "More")
+            router.plusRoute = .unavailable(pageName: "更多")
         case .plus:
             break
         }
@@ -144,38 +155,33 @@ struct RootView: View {
 
     @MainActor
     private func addFamilyFromClipboard() async {
-        // Let the option sheet finish dismissing before the system paste prompt
-        // (or an error alert) is presented.
         try? await Task.sleep(for: .milliseconds(250))
 
         guard let clipboardText = UIPasteboard.general.string,
               !clipboardText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             message = AppMessage(
-                title: "Family",
-                message: "The clipboard is empty. Copy a family link first."
+                title: "家族",
+                message: "剪贴板为空，请先复制家族链接。"
             )
             return
         }
 
         guard let familyURL = FamilyURLParser.detectURL(in: clipboardText) else {
             message = AppMessage(
-                title: "Family",
-                message: "No URL was found in the clipboard content."
+                title: "家族",
+                message: "剪贴板中没有找到链接。"
             )
             return
         }
 
-        // Phase 1: the pure part of the reference URL parsing (query parameters
-        // / path). It makes the family appear in the section immediately, even
-        // if the network requests below are slow or unavailable.
         let knownFamilyID = FamilyURLParser.extractFamilyID(from: familyURL) ?? ""
         let quickName: String
         if !knownFamilyID.isEmpty {
-            quickName = "Family \(knownFamilyID)"
+            quickName = "家族 \(knownFamilyID)"
         } else if let host = familyURL.host, !host.isEmpty {
             quickName = host
         } else {
-            quickName = "Family"
+            quickName = "家族"
         }
         let quickFamily = ParsedFamily(
             url: familyURL.absoluteString,
@@ -187,20 +193,17 @@ struct RootView: View {
         )
         if let saveError = saveFamily(quickFamily) {
             message = AppMessage(
-                title: "Family",
-                message: "The family could not be saved: \(saveError)"
+                title: "家族",
+                message: "家族保存失败：\(saveError)"
             )
             return
         }
 
-        // Phase 2: the rest of `fetch_family_from_url` — short-link resolution,
-        // SSR family info, and the member APIs. The stored family is updated
-        // in place because the URL is the family identity.
         let parsed = await FamilyService.loadFamily(from: familyURL)
         if let saveError = saveFamily(parsed) {
             message = AppMessage(
-                title: "Family",
-                message: "The family could not be saved: \(saveError)"
+                title: "家族",
+                message: "家族保存失败：\(saveError)"
             )
         }
     }
@@ -209,7 +212,7 @@ struct RootView: View {
     private func saveFamily(_ parsed: ParsedFamily) -> String? {
         let urlString = parsed.url
         guard !urlString.isEmpty else {
-            return "The family URL is empty."
+            return "家族链接为空。"
         }
 
         let storedFamilies = (try? modelContext.fetch(FetchDescriptor<Family>())) ?? []
@@ -226,7 +229,7 @@ struct RootView: View {
         } else {
             let family = Family(
                 url: urlString,
-                name: parsed.name.isEmpty ? "Family" : parsed.name,
+                name: parsed.name.isEmpty ? "家族" : parsed.name,
                 familyID: parsed.familyID,
                 avatarURL: parsed.avatarURL
             )
@@ -264,126 +267,70 @@ struct RootView: View {
         }
     }
 
-    // MARK: - HAR import
-
-    private static var harPickerTypes: [UTType] {
-        let harType = UTType(filenameExtension: "har", conformingTo: .json) ?? .json
-        if harType.identifier == UTType.json.identifier {
-            return [.json]
-        }
-        return [harType, .json]
-    }
+    // MARK: - File selection
 
     private func handleFileSelection(_ result: Result<[URL], Error>) {
         switch result {
         case .failure(let error):
-            message = AppMessage(title: "HAR Import", message: error.localizedDescription)
+            filePickerPurpose = nil
+            message = AppMessage(title: "文件选择失败", message: error.localizedDescription)
 
         case .success(let urls):
-            guard !urls.isEmpty else { return }
-            guard let familyURL = importTargetFamilyURL else {
-                message = AppMessage(
-                    title: "HAR Import",
-                    message: "Open a family before importing HAR files."
-                )
+            guard let purpose = filePickerPurpose, !urls.isEmpty else {
+                filePickerPurpose = nil
                 return
             }
-            importTargetFamilyURL = nil
+            filePickerPurpose = nil
 
-            // Keep the security-scoped access alive while the files are read off
-            // the main thread.
-            let scopedURLs: [(url: URL, didStartAccessing: Bool)] = urls.map { url in
-                (url: url, didStartAccessing: url.startAccessingSecurityScopedResource())
-            }
-
-            isImportingHAR = true
-            Task {
-                let outcome = await HARImportService.parse(urls: scopedURLs.map { $0.url })
-                for item in scopedURLs where item.didStartAccessing {
-                    item.url.stopAccessingSecurityScopedResource()
-                }
-                applyImport(outcome, familyURL: familyURL)
-                isImportingHAR = false
+            switch purpose {
+            case .har(let familyURL):
+                importHAR(urls, familyURL: familyURL)
+            case .video:
+                prepareVideoComposer(urls)
             }
         }
     }
 
-    @MainActor
-    private func applyImport(_ outcome: HARImportOutcome, familyURL: String) {
-        let storedMembers = (try? modelContext.fetch(FetchDescriptor<FamilyMember>())) ?? []
-        let familyMembers = storedMembers.filter { $0.familyURL == familyURL }
+    private func importHAR(_ urls: [URL], familyURL: String) {
+        let scopedURLs: [(url: URL, didStartAccessing: Bool)] = urls.map { url in
+            (url: url, didStartAccessing: url.startAccessingSecurityScopedResource())
+        }
 
-        var importedCount = 0
-        var notFoundCount = 0
-        var ambiguousCount = 0
-        var notFoundNames: [String] = []
-        var ambiguousNames: [String] = []
-
-        for record in outcome.records {
-            switch MemberNameResolver.resolve(record.memberName, in: familyMembers) {
-            case .resolved(let memberID):
-                let honorRecord = HonorRecord(
-                    memberID: memberID,
-                    taskName: record.taskName,
-                    honorValue: record.honorValue,
-                    time: record.time,
-                    familyURL: familyURL
-                )
-                modelContext.insert(honorRecord)
-                importedCount += 1
-
-            case .notFound:
-                notFoundCount += 1
-                appendUniqueName(record.memberName, to: &notFoundNames)
-
-            case .ambiguous:
-                ambiguousCount += 1
-                appendUniqueName(record.memberName, to: &ambiguousNames)
+        isImportingHAR = true
+        Task { @MainActor in
+            let outcome = await HARImportService.parse(urls: scopedURLs.map { $0.url })
+            for item in scopedURLs where item.didStartAccessing {
+                item.url.stopAccessingSecurityScopedResource()
             }
+            pendingImports.setPending(outcome, for: familyURL)
+            isImportingHAR = false
         }
-
-        var saveError: String?
-        do {
-            try modelContext.save()
-        } catch {
-            saveError = error.localizedDescription
-        }
-
-        var lines: [String] = [
-            "Imported \(importedCount) record\(importedCount == 1 ? "" : "s")."
-        ]
-        if notFoundCount > 0 {
-            lines.append(
-                "Skipped \(notFoundCount) record\(notFoundCount == 1 ? "" : "s") for members that were not found: \(notFoundNames.joined(separator: ", "))."
-            )
-        }
-        if ambiguousCount > 0 {
-            lines.append(
-                "Skipped \(ambiguousCount) record\(ambiguousCount == 1 ? "" : "s") with ambiguous member names: \(ambiguousNames.joined(separator: ", "))."
-            )
-        }
-        if importedCount == 0 {
-            lines.append(
-                "Files: \(outcome.fileCount), matching responses: \(outcome.matchedResponseCount), kept after deduplication: \(outcome.keptResponseCount)."
-            )
-        }
-        lines.append(contentsOf: outcome.warnings)
-        if let saveError {
-            lines.append("Saving failed: \(saveError)")
-        }
-
-        message = AppMessage(title: "HAR Import", message: lines.joined(separator: "\n\n"))
     }
 
-    private func appendUniqueName(_ name: String, to names: inout [String]) {
-        guard names.count < 6, !names.contains(name) else { return }
-        names.append(name)
+    private func prepareVideoComposer(_ urls: [URL]) {
+        let selection = FileSelectionValidator.partition(urls)
+        guard selection.rejected.isEmpty else {
+            let names = selection.rejected.map(\.lastPathComponent).joined(separator: "、")
+            message = AppMessage(
+                title: "文件类型不支持",
+                message: "照片和视频请使用照片选择器选择。已取消本次文件选择：\(names)"
+            )
+            return
+        }
+
+        guard !selection.accepted.isEmpty else { return }
+        videoComposerFiles = selection.accepted
+        Task { @MainActor in
+            // Let the file importer finish dismissing before presenting the sheet.
+            try? await Task.sleep(for: .milliseconds(250))
+            isVideoComposerPresented = true
+        }
     }
 
     // MARK: - Alert / progress
 
     private var messageTitle: String {
-        message?.title ?? "Notice"
+        message?.title ?? "提示"
     }
 
     private var messageIsPresented: Binding<Bool> {
@@ -399,12 +346,13 @@ struct RootView: View {
 
     private var workingOverlay: some View {
         ZStack {
-            Color.black.opacity(0.12)
+            Rectangle()
+                .fill(.ultraThinMaterial)
                 .ignoresSafeArea()
 
             VStack(spacing: 12) {
                 ProgressView()
-                Text("Importing HAR files…")
+                Text("正在解析文件…")
                     .font(.footnote)
             }
             .padding(20)

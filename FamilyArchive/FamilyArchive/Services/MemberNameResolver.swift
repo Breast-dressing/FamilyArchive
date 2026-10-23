@@ -50,6 +50,16 @@ enum MemberNameResolver {
         return .notFound
     }
 
+    /// Used by the member detail page to show pending records for one member
+    /// without creating or mutating any stored member.
+    static func matches(_ rawName: String, memberName: String) -> Bool {
+        let lhs = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rhs = memberName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !lhs.isEmpty, !rhs.isEmpty else { return false }
+        if lhs.caseInsensitiveCompare(rhs) == .orderedSame { return true }
+        return normalizedForMatching(lhs) == normalizedForMatching(rhs)
+    }
+
     private static func normalizedForMatching(_ value: String) -> String {
         var result = value
             .trimmingCharacters(in: .whitespacesAndNewlines)

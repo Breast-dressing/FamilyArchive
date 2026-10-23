@@ -1,12 +1,3 @@
-//
-//  MusicRootView.swift
-//  FamilyArchive
-//
-//  The Music page. Its toolbar title area holds a native segmented control with
-//  "Music" and "Archive". "Account" is always the rightmost toolbar button;
-//  "More" only exists while "Archive" is selected and sits left of Account.
-//
-
 import SwiftUI
 
 struct MusicRootView: View {
@@ -26,9 +17,9 @@ struct MusicRootView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("Music section", selection: $router.musicSection) {
-                        Text("Music").tag(MusicSection.music)
-                        Text("Archive").tag(MusicSection.archive)
+                    Picker("音乐分区", selection: $router.musicSection) {
+                        Text("音乐").tag(MusicSection.music)
+                        Text("档案").tag(MusicSection.archive)
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 190)
@@ -36,13 +27,10 @@ struct MusicRootView: View {
 
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if router.musicSection == .archive {
-                        // Visibility and position are required; no action is
-                        // specified for this button in the specification.
-                        Button("More") {}
+                        Button("更多") {}
                     }
 
-                    // Always visible and rightmost.
-                    Button("Account") {}
+                    Button("账号") {}
                 }
             }
             .navigationDestination(for: String.self) { familyURL in

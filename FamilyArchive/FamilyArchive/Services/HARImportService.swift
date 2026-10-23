@@ -31,6 +31,7 @@ struct HARImportOutcome: Sendable {
     let fileCount: Int
     let matchedResponseCount: Int
     let keptResponseCount: Int
+    let fileNames: [String]
 }
 
 enum HARImportService {
@@ -58,15 +59,17 @@ enum HARImportService {
         var keptTexts: [String] = []
         var warnings: [String] = []
         var fileCount = 0
+        var fileNames: [String] = []
 
         for url in urls {
             let displayName = url.lastPathComponent.isEmpty ? url.absoluteString : url.lastPathComponent
+            fileNames.append(displayName)
 
             let data: Data
             do {
                 data = try Data(contentsOf: url, options: [.mappedIfSafe])
             } catch {
-                appendWarning("\(displayName): could not be read (\(error.localizedDescription)).", to: &warnings)
+                appendWarning("\(displayName)：无法读取（\(error.localizedDescription)）。", to: &warnings)
                 continue
             }
 
@@ -74,7 +77,7 @@ enum HARImportService {
                   let root = object as? [String: Any],
                   let log = root["log"] as? [String: Any],
                   let entries = log["entries"] as? [[String: Any]] else {
-                appendWarning("\(displayName): not a valid HAR JSON file.", to: &warnings)
+                appendWarning("\(displayName)：不是有效的记录文件。", to: &warnings)
                 continue
             }
 
@@ -110,7 +113,7 @@ enum HARImportService {
             }
 
             if matchedInFile == 0 {
-                appendWarning("\(displayName): no GetFamilyHonorRecord responses found.", to: &warnings)
+                appendWarning("\(displayName)：未找到家族荣誉记录响应。", to: &warnings)
             }
         }
 
@@ -132,10 +135,10 @@ enum HARImportService {
         }
 
         if skippedRecordCount > 0 {
-            var warning = "\(skippedRecordCount) records were skipped because their Title did not contain a resolvable member name."
+            var warning = "\(skippedRecordCount) 条记录因标题中没有可解析的成员名而被跳过。"
             let samples = skippedSamples.filter { !$0.isEmpty }
             if !samples.isEmpty {
-                warning += " Examples: " + samples.joined(separator: " / ")
+                warning += " 示例：" + samples.joined(separator: " / ")
             }
             appendWarning(warning, to: &warnings)
         }
@@ -145,7 +148,8 @@ enum HARImportService {
             warnings: warnings,
             fileCount: fileCount,
             matchedResponseCount: filteredTexts.count,
-            keptResponseCount: keptTexts.count
+            keptResponseCount: keptTexts.count,
+            fileNames: fileNames
         )
     }
 

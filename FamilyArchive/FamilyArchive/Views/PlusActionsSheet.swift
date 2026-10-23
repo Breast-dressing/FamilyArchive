@@ -1,18 +1,10 @@
-//
-//  PlusActionsSheet.swift
-//  FamilyArchive
-//
-//  The option list presented by the detached "＋" tab. It never navigates and
-//  never changes the selected tab.
-//
-
 import SwiftUI
 
 enum ArchiveAction: String, CaseIterable, Identifiable {
-    case badges = "Badges"
-    case family = "Family"
-    case cards = "Cards"
-    case business = "Business"
+    case badges = "徽章"
+    case family = "家族"
+    case cards = "卡片"
+    case business = "商务"
 
     var id: String { rawValue }
     var title: String { rawValue }
@@ -59,17 +51,17 @@ struct PlusActionsSheet: View {
 
                 case .unavailable(let pageName):
                     ContentUnavailableView(
-                        "No actions here",
+                        "暂无可添加内容",
                         systemImage: "plus.circle",
-                        description: Text("The ＋ button has no actions on \(pageName).")
+                        description: Text("当前页面（\(pageName)）没有可用的 ＋ 操作。")
                     )
                 }
             }
-            .navigationTitle("Add")
+            .navigationTitle("添加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
+                    Button("完成") {
                         dismiss()
                     }
                 }
