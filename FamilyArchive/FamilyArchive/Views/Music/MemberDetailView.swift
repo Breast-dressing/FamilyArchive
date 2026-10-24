@@ -1,22 +1,21 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct MemberDetailView: View {
     let familyURL: String
     let memberID: String
 
-    @Environment(\.modelContext) private var modelContext
     @Environment(PendingImportStore.self) private var pendingImports
+    @Environment(DateFilterStore.self) private var dateFilter
 
     @Query private var members: [FamilyMember]
     @Query private var records: [HonorRecord]
     @Query private var families: [Family]
 
-    @State private var startDate = Calendar.current.date(byAdding: .year, value: -1, to: .now) ?? .now
-    @State private var endDate = Date.now
-    @State private var summaryMessage = ""
-    @State private var showSummary = false
+    @State private var isDateFilterPresented = false
+    @Namespace private var zoomNamespace
 
     private var member: FamilyMember? {
         members.first { $0.memberID == memberID && $0.familyURL == familyURL }
@@ -26,32 +25,57 @@ struct MemberDetailView: View {
         families.first { $0.url == familyURL }?.name ?? "家族"
     }
 
+    private var familyRecords: [HonorRecord] {
+        records.filter { $0.familyURL == familyURL }
+    }
+
+    private var filteredFamilyRecords: [HonorRecord] {
+        familyRecords.filter { dateFilter.filter.matches(timeString: $0.time) }
+    }
+
+    private var hasAnyRecordInRange: Bool {
+        !filteredFamilyRecords.isEmpty
+    }
+
     private var memberRecords: [HonorRecord] {
-        records.filter { $0.memberID == memberID && $0.familyURL == familyURL }
+        familyRecords
+            .filter { $0.memberID == memberID }
+            .sorted { $0.time > $1.time }
+    }
+
+    private var filteredMemberRecords: [HonorRecord] {
+        filteredFamilyRecords
+            .filter { $0.memberID == memberID }
+            .sorted { $0.time > $1.time }
+    }
+
+    private var totalHonor: Int {
+        guard let member else { return 0 }
+        return MemberHonorDisplay.total(
+            apiHonor: member.apiHonor,
+            filteredRecords: filteredMemberRecords,
+            allRecords: memberRecords,
+            hasAnyRecordInRange: hasAnyRecordInRange
+        )
     }
 
     private var pending: PendingHARImport? {
         pendingImports.pending(for: familyURL)
     }
 
-    private var pendingRecords: [ParsedHonorRecord] {
-        guard let pending, let member else { return [] }
-        return pending.outcome.records.filter {
-            MemberNameResolver.matches($0.memberName, memberName: member.name)
+    private var dateGroups: [RecordDateGroup] {
+        let groups = Dictionary(grouping: filteredMemberRecords) {
+            DateDisplay.dayKey(from: $0.time)
         }
-    }
-
-    private var filteredRecords: [HonorRecord] {
-        let filter = DateRangeFilter(start: startDate, end: endDate)
-        return memberRecords
-            .filter { filter.matches(timeString: $0.time) }
-            .sorted { $0.time > $1.time }
+        return groups
+            .map { RecordDateGroup(id: $0.key, records: $0.value) }
+            .sorted { $0.id > $1.id }
     }
 
     var body: some View {
         Group {
             if let member {
-                list(member: member)
+                detailList(member: member)
             } else {
                 ContentUnavailableView(
                     "成员不存在",
@@ -62,102 +86,214 @@ struct MemberDetailView: View {
         }
         .navigationTitle(member?.name ?? "成员")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("提示", isPresented: $showSummary) {
-            Button("好", role: .cancel) {}
-        } message: {
-            Text(summaryMessage)
-        }
     }
 
-    private func list(member: FamilyMember) -> some View {
+    private func detailList(member: FamilyMember) -> some View {
         List {
-            Section {
-                HStack(alignment: .top, spacing: 14) {
-                    RemoteAvatarView(
-                        urlString: member.avatarURL,
-                        systemImage: "person.crop.circle.fill",
-                        size: 64
-                    )
-
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(member.name)
-                            .font(.title3.bold())
-                        Text(familyName)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("成员编号 \(member.memberID)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text("总荣誉值 \(HonorValueParser.total(for: memberRecords))")
-                            .font(.subheadline)
-                            .foregroundStyle(.tint)
-                        Text("\(memberRecords.count) 条记录")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.vertical, 4)
+            Section("成员信息") {
+                memberInfoCard(member)
             }
 
-            if let pending {
-                PendingImportPreview(
-                    pending: pending,
-                    records: pendingRecords,
-                    onSave: { savePending(pending) },
-                    onCancel: { pendingImports.clear(for: familyURL) }
-                )
-                .transition(
-                    .asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .opacity
-                    )
-                )
-            } else {
-                DateFilterSection(
-                    startDate: $startDate,
-                    endDate: $endDate,
-                    totalCount: filteredRecords.count
-                )
-                .transition(.opacity)
-
-                Section("记录") {
-                    if filteredRecords.isEmpty {
-                        Text("暂无记录")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(filteredRecords) { record in
-                            HonorRecordRow(record: record)
+            Section("荣誉记录") {
+                if filteredMemberRecords.isEmpty {
+                    Text("暂无记录")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 20)
+                } else {
+                    ForEach(dateGroups) { group in
+                        NavigationLink {
+                            DailyRecordsView(date: group.id, records: group.records)
+                        } label: {
+                            dateGroupRow(group)
                         }
                     }
                 }
-                .transition(.opacity)
             }
         }
         .listStyle(.insetGrouped)
-        .animation(.snappy(duration: 0.35), value: pending?.id)
+        .toolbar {
+            if let pending {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        PendingFilesView(familyURL: familyURL, memberName: member.name)
+                            .navigationTransition(
+                                .zoom(sourceID: "memberPendingFiles", in: zoomNamespace)
+                            )
+                    } label: {
+                        Image(systemName: "tray.and.arrow.down")
+                    }
+                    .matchedTransitionSource(id: "memberPendingFiles", in: zoomNamespace)
+                    .accessibilityLabel("待保存文件")
+                }
+            }
+
+            ToolbarItem(placement: .bottomBar) {
+                dateFilterButton
+            }
+        }
     }
 
-    private func savePending(_ pending: PendingHARImport) {
-        let summary = HARImportWriter.save(pending, in: modelContext)
-        if summary.saveError == nil {
-            pendingImports.clear(for: familyURL)
+    private func memberInfoCard(_ member: FamilyMember) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                RemoteAvatarView(
+                    urlString: member.avatarURL,
+                    systemImage: "person.crop.circle.fill",
+                    size: 66
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(member.name)
+                        .font(.title3.bold())
+                        .lineLimit(1)
+
+                    if !member.medalLevel.isEmpty || !member.nameplate.isEmpty {
+                        HStack(spacing: 6) {
+                            if !member.medalLevel.isEmpty {
+                                Text(member.medalLevel)
+                                    .font(.caption.bold())
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Color(uiColor: .tertiarySystemFill),
+                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    )
+                            }
+                            if !member.nameplate.isEmpty {
+                                Text(member.nameplate)
+                                    .font(.caption.bold())
+                                    .foregroundStyle(Color(uiColor: .systemBrown))
+                            }
+                        }
+                    }
+
+                    Text(familyName)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            HStack(alignment: .center, spacing: 16) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(totalHonor)")
+                        .font(.title2.bold())
+                        .foregroundStyle(.primary)
+                    Text("总荣誉")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+                    .frame(height: 32)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(filteredMemberRecords.count)")
+                        .font(.title2.bold())
+                        .foregroundStyle(.primary)
+                    Text("记录数")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
-        summaryMessage = summaryText(summary)
-        showSummary = true
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func summaryText(_ summary: HARImportSummary) -> String {
-        var lines = ["已保存 \(summary.imported) 条记录。"]
-        if !summary.notFound.isEmpty {
-            lines.append("未找到成员：\(summary.notFound.joined(separator: "、"))")
+    private func dateGroupRow(_ group: RecordDateGroup) -> some View {
+        let total = group.total
+        return HStack(spacing: 8) {
+            Text(group.id)
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
+            Spacer()
+            Text("\(group.records.count) 条")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+            Text(total > 0 ? "+\(total)" : "\(total)")
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
+                .frame(minWidth: 56, alignment: .trailing)
         }
-        if !summary.ambiguous.isEmpty {
-            lines.append("成员名不明确：\(summary.ambiguous.joined(separator: "、"))")
+    }
+
+    private var dateFilterButton: some View {
+        Button {
+            isDateFilterPresented = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(.tint)
+                Text(dateFilter.label)
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.up")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: Capsule())
         }
-        lines.append(contentsOf: summary.warnings)
-        if let saveError = summary.saveError {
-            lines.append("保存失败：\(saveError)")
+        .buttonStyle(.plain)
+        .popover(isPresented: $isDateFilterPresented, arrowEdge: .bottom) {
+            DateFilterPopover()
+                .presentationCompactAdaptation(.sheet)
+                .presentationDetents([.medium])
         }
-        return lines.joined(separator: "\n")
+        .accessibilityLabel("日期筛选，\(dateFilter.label)")
+    }
+}
+
+private struct RecordDateGroup: Identifiable {
+    let id: String
+    let records: [HonorRecord]
+
+    var total: Int {
+        HonorValueParser.total(for: records)
+    }
+}
+
+struct DailyRecordsView: View {
+    let date: String
+    let records: [HonorRecord]
+
+    var body: some View {
+        List {
+            Section(date) {
+                ForEach(records) { record in
+                    HonorRecordRow(record: record)
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(date)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+struct HonorRecordRow: View {
+    let record: HonorRecord
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(record.taskName.isEmpty ? "—" : record.taskName)
+                Text(record.time.isEmpty ? "—" : record.time)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 8)
+
+            Text(record.honorValue)
+                .font(.callout)
+                .monospacedDigit()
+                .foregroundStyle(.tint)
+        }
+        .padding(.vertical, 2)
     }
 }

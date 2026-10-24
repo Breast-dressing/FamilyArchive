@@ -24,6 +24,8 @@ struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var router = AppRouter()
     @State private var pendingImports = PendingImportStore()
+    @State private var dateFilterStore = DateFilterStore()
+    @State private var importCoordinator = FileImportCoordinator()
 
     @State private var filePickerPurpose: FilePickerPurpose?
     @State private var isFilePickerPresented = false
@@ -65,7 +67,15 @@ struct RootView: View {
         .tint(.blue)
         .environment(router)
         .environment(pendingImports)
+        .environment(dateFilterStore)
+        .environment(importCoordinator)
         .environment(\.locale, Locale(identifier: "zh_CN"))
+        .onChange(of: importCoordinator.request) { _, request in
+            guard let request else { return }
+            filePickerPurpose = .har(familyURL: request.familyURL)
+            isFilePickerPresented = true
+            importCoordinator.request = nil
+        }
         .onChange(of: router.selectedTab) { previousTab, newTab in
             guard newTab == .plus else { return }
             router.selectedTab = previousTab
@@ -84,7 +94,7 @@ struct RootView: View {
         }
         .fileImporter(
             isPresented: $isFilePickerPresented,
-            allowedContentTypes: [.data],
+            allowedContentTypes: [.item],
             allowsMultipleSelection: true
         ) { result in
             handleFileSelection(result)
@@ -189,6 +199,11 @@ struct RootView: View {
             name: quickName,
             nameIsResolved: false,
             avatarURL: "",
+            signature: "",
+            honor: "",
+            weekRank: "",
+            memberCountText: "",
+            pkWins: "",
             members: []
         )
         if let saveError = saveFamily(quickFamily) {
@@ -226,12 +241,22 @@ struct RootView: View {
             if !parsed.avatarURL.isEmpty {
                 existing.avatarURL = parsed.avatarURL
             }
+            if !parsed.signature.isEmpty { existing.signature = parsed.signature }
+            if !parsed.honor.isEmpty { existing.honor = parsed.honor }
+            if !parsed.weekRank.isEmpty { existing.weekRank = parsed.weekRank }
+            if !parsed.memberCountText.isEmpty { existing.memberCountText = parsed.memberCountText }
+            if !parsed.pkWins.isEmpty { existing.pkWins = parsed.pkWins }
         } else {
             let family = Family(
                 url: urlString,
                 name: parsed.name.isEmpty ? "家族" : parsed.name,
                 familyID: parsed.familyID,
-                avatarURL: parsed.avatarURL
+                avatarURL: parsed.avatarURL,
+                signature: parsed.signature,
+                honor: parsed.honor,
+                weekRank: parsed.weekRank,
+                memberCountText: parsed.memberCountText,
+                pkWins: parsed.pkWins
             )
             modelContext.insert(family)
         }
@@ -247,12 +272,18 @@ struct RootView: View {
                 existingMember.name = payload.name
                 existingMember.avatarURL = payload.avatarURL
                 existingMember.familyURL = urlString
+                if !payload.medalLevel.isEmpty { existingMember.medalLevel = payload.medalLevel }
+                if !payload.nameplate.isEmpty { existingMember.nameplate = payload.nameplate }
+                if payload.apiHonor > 0 { existingMember.apiHonor = payload.apiHonor }
             } else {
                 let member = FamilyMember(
                     memberID: payload.memberID,
                     name: payload.name,
                     avatarURL: payload.avatarURL,
-                    familyURL: urlString
+                    familyURL: urlString,
+                    medalLevel: payload.medalLevel,
+                    nameplate: payload.nameplate,
+                    apiHonor: payload.apiHonor
                 )
                 modelContext.insert(member)
                 membersByID[payload.memberID] = member
@@ -284,26 +315,26 @@ struct RootView: View {
 
             switch purpose {
             case .har(let familyURL):
-                importHAR(urls, familyURL: familyURL)
+                // Start security-scoped access inside the fileImporter
+                // completion handler; keep it alive until the detached HAR
+                // parse finishes, then stop every scope.
+                let scopedURLs: [(url: URL, didStartAccessing: Bool)] = urls.map { url in
+                    (url: url, didStartAccessing: url.startAccessingSecurityScopedResource())
+                }
+                isImportingHAR = true
+                Task { @MainActor in
+                    defer {
+                        for item in scopedURLs where item.didStartAccessing {
+                            item.url.stopAccessingSecurityScopedResource()
+                        }
+                    }
+                    let outcome = await HARImportService.parse(urls: scopedURLs.map { $0.url })
+                    pendingImports.setPending(outcome, for: familyURL)
+                    isImportingHAR = false
+                }
             case .video:
                 prepareVideoComposer(urls)
             }
-        }
-    }
-
-    private func importHAR(_ urls: [URL], familyURL: String) {
-        let scopedURLs: [(url: URL, didStartAccessing: Bool)] = urls.map { url in
-            (url: url, didStartAccessing: url.startAccessingSecurityScopedResource())
-        }
-
-        isImportingHAR = true
-        Task { @MainActor in
-            let outcome = await HARImportService.parse(urls: scopedURLs.map { $0.url })
-            for item in scopedURLs where item.didStartAccessing {
-                item.url.stopAccessingSecurityScopedResource()
-            }
-            pendingImports.setPending(outcome, for: familyURL)
-            isImportingHAR = false
         }
     }
 

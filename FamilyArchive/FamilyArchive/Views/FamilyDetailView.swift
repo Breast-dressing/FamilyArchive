@@ -1,55 +1,62 @@
 import Foundation
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct FamilyDetailView: View {
     let familyURL: String
 
-    @Environment(\.modelContext) private var modelContext
     @Environment(PendingImportStore.self) private var pendingImports
+    @Environment(DateFilterStore.self) private var dateFilter
 
     @Query private var families: [Family]
     @Query private var allMembers: [FamilyMember]
     @Query private var allRecords: [HonorRecord]
 
-    @State private var startDate = Calendar.current.date(byAdding: .year, value: -1, to: .now) ?? .now
-    @State private var endDate = Date.now
-    @State private var summaryMessage = ""
-    @State private var showSummary = false
+    @State private var isDateFilterPresented = false
+    @Namespace private var zoomNamespace
 
     private var family: Family? {
         families.first { $0.url == familyURL }
-    }
-
-    private var members: [FamilyMember] {
-        allMembers
-            .filter { $0.familyURL == familyURL }
-            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     private var familyRecords: [HonorRecord] {
         allRecords.filter { $0.familyURL == familyURL }
     }
 
-    private var pending: PendingHARImport? {
-        pendingImports.pending(for: familyURL)
-    }
-
     private var filteredRecords: [HonorRecord] {
-        let filter = DateRangeFilter(start: startDate, end: endDate)
-        return familyRecords
-            .filter { filter.matches(timeString: $0.time) }
+        familyRecords
+            .filter { dateFilter.filter.matches(timeString: $0.time) }
             .sorted { $0.time > $1.time }
     }
 
-    private var memberNames: [String: String] {
-        Dictionary(uniqueKeysWithValues: members.map { ($0.memberID, $0.name) })
+    private var hasAnyRecordInRange: Bool {
+        !filteredRecords.isEmpty
+    }
+
+    private var members: [FamilyMember] {
+        allMembers
+            .filter { $0.familyURL == familyURL }
+            .sorted {
+                let left = displayHonor($0)
+                let right = displayHonor($1)
+                if left != right { return left > right }
+                return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
+    }
+
+    private var familyMemberTotal: Int {
+        members.reduce(0) { $0 + displayHonor($1) }
+    }
+
+    private var pending: PendingHARImport? {
+        pendingImports.pending(for: familyURL)
     }
 
     var body: some View {
         Group {
             if let family {
-                list(family: family)
+                detailList(family: family)
             } else {
                 ContentUnavailableView(
                     "家族不存在",
@@ -60,196 +67,224 @@ struct FamilyDetailView: View {
         }
         .navigationTitle(family?.name ?? "家族")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("提示", isPresented: $showSummary) {
-            Button("好", role: .cancel) {}
-        } message: {
-            Text(summaryMessage)
-        }
     }
 
-    private func list(family: Family) -> some View {
+    private func detailList(family: Family) -> some View {
         List {
-            headerSection(family: family)
-
-            if let pending {
-                PendingImportPreview(
-                    pending: pending,
-                    records: pending.outcome.records,
-                    onSave: { savePending(pending) },
-                    onCancel: { pendingImports.clear(for: familyURL) }
-                )
-                .transition(
-                    .asymmetric(
-                        insertion: .move(edge: .top).combined(with: .opacity),
-                        removal: .opacity
-                    )
-                )
-            } else {
-                DateFilterSection(
-                    startDate: $startDate,
-                    endDate: $endDate,
-                    totalCount: filteredRecords.count
-                )
-                .transition(.opacity)
-
-                Section("记录") {
-                    if filteredRecords.isEmpty {
-                        Text("暂无记录")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(filteredRecords) { record in
-                            HonorRecordRow(
-                                record: record,
-                                memberName: memberNames[record.memberID]
-                            )
-                        }
-                    }
-                }
-                .transition(.opacity)
+            Section("家族信息") {
+                familyInfoCard(family)
             }
 
-            Section("成员") {
+            Section {
+                memberSummaryRow
+
                 if members.isEmpty {
                     Text("暂无成员数据。重新添加家族链接可加载成员。")
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(members) { member in
                         NavigationLink {
-                            MemberDetailView(
-                                familyURL: familyURL,
-                                memberID: member.memberID
-                            )
+                            MemberDetailView(familyURL: familyURL, memberID: member.memberID)
                         } label: {
                             memberRow(member)
                         }
                     }
                 }
+            } header: {
+                Text("成员列表 · \(members.count) 人")
             }
         }
         .listStyle(.insetGrouped)
-        .animation(.snappy(duration: 0.35), value: pending?.id)
-    }
-
-    private func headerSection(family: Family) -> some View {
-        Section {
-            HStack(alignment: .top, spacing: 14) {
-                RemoteAvatarView(
-                    urlString: family.avatarURL,
-                    systemImage: "person.3.fill",
-                    size: 64
-                )
-
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(family.name.isEmpty ? "未命名家族" : family.name)
-                        .font(.title3.bold())
-
-                    if !family.familyID.isEmpty {
-                        Text("家族编号 \(family.familyID)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+        .toolbar {
+            if let pending {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        PendingFilesView(familyURL: familyURL, memberName: nil)
+                            .navigationTransition(
+                                .zoom(sourceID: "pendingFiles", in: zoomNamespace)
+                            )
+                    } label: {
+                        Image(systemName: "tray.and.arrow.down")
                     }
-
-                    Text("总荣誉值 \(HonorValueParser.total(for: familyRecords))")
-                        .font(.subheadline)
-                        .foregroundStyle(.tint)
-
-                    Text("\(members.count) 位成员 · \(familyRecords.count) 条记录")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .matchedTransitionSource(id: "pendingFiles", in: zoomNamespace)
+                    .accessibilityLabel("待保存文件，\(pending.outcome.records.count) 条记录")
                 }
             }
-            .padding(.vertical, 4)
 
-            Text(family.url)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .lineLimit(2)
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    FamilyImportActionsView(familyURL: familyURL)
+                        .navigationTransition(
+                            .zoom(sourceID: "familyPlus", in: zoomNamespace)
+                        )
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .matchedTransitionSource(id: "familyPlus", in: zoomNamespace)
+                .accessibilityLabel("添加")
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                ShareLink(item: familyURL) {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel("分享家族")
+            }
+
+            ToolbarItem(placement: .bottomBar) {
+                dateFilterButton
+            }
         }
     }
 
+    private func familyInfoCard(_ family: Family) -> some View {
+        let memberCount = family.memberCountText.isEmpty
+            ? "\(members.count)"
+            : family.memberCountText
+        let stats: [(value: String, label: String)] = [
+            (family.honor, "总荣誉值"),
+            (family.weekRank, "周排名"),
+            (memberCount, "成员"),
+            (family.pkWins, "PK胜场")
+        ].filter { !$0.value.isEmpty }
+
+        return HStack(alignment: .top, spacing: 12) {
+            RemoteAvatarView(
+                urlString: family.avatarURL,
+                systemImage: "person.3.fill",
+                size: 84
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(family.name.isEmpty ? "未命名家族" : family.name)
+                    .font(.title2.bold())
+                    .lineLimit(1)
+
+                if !stats.isEmpty {
+                    HStack(spacing: 0) {
+                        ForEach(stats.indices, id: \.self) { index in
+                            if index > 0 {
+                                Spacer(minLength: 8)
+                            }
+                            VStack(spacing: 2) {
+                                Text(stats[index].value)
+                                    .font(.subheadline.bold())
+                                    .lineLimit(1)
+                                Text(stats[index].label)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                    }
+                }
+
+                if !family.signature.isEmpty {
+                    Text(family.signature)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var memberSummaryRow: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(familyMemberTotal)")
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
+            Text("总荣誉值")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
     private func memberRow(_ member: FamilyMember) -> some View {
-        let records = familyRecords.filter { $0.memberID == member.memberID }
-        return HStack(spacing: 12) {
+        HStack(spacing: 10) {
             RemoteAvatarView(
                 urlString: member.avatarURL,
                 systemImage: "person.crop.circle.fill",
-                size: 42
+                size: 44
             )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(member.name)
-                    .font(.body)
-                Text(member.memberID)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(HonorValueParser.total(for: records))")
-                    .font(.subheadline)
-                    .foregroundStyle(.tint)
-                Text("\(records.count) 条")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private func savePending(_ pending: PendingHARImport) {
-        let summary = HARImportWriter.save(pending, in: modelContext)
-        if summary.saveError == nil {
-            pendingImports.clear(for: familyURL)
-        }
-        summaryMessage = summaryText(summary)
-        showSummary = true
-    }
-
-    private func summaryText(_ summary: HARImportSummary) -> String {
-        var lines = ["已保存 \(summary.imported) 条记录。"]
-        if !summary.notFound.isEmpty {
-            lines.append("未找到成员：\(summary.notFound.joined(separator: "、"))")
-        }
-        if !summary.ambiguous.isEmpty {
-            lines.append("成员名不明确：\(summary.ambiguous.joined(separator: "、"))")
-        }
-        lines.append(contentsOf: summary.warnings)
-        if let saveError = summary.saveError {
-            lines.append("保存失败：\(saveError)")
-        }
-        return lines.joined(separator: "\n")
-    }
-}
-
-struct HonorRecordRow: View {
-    let record: HonorRecord
-    var memberName: String? = nil
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(record.taskName.isEmpty ? "—" : record.taskName)
-
-                HStack(spacing: 4) {
-                    if let memberName, !memberName.isEmpty {
-                        Text(memberName)
-                        Text("·")
+                if !member.medalLevel.isEmpty || !member.nameplate.isEmpty {
+                    HStack(spacing: 6) {
+                        if !member.medalLevel.isEmpty {
+                            Text(member.medalLevel)
+                                .font(.caption2.bold())
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 1)
+                                .background(
+                                    Color(uiColor: .tertiarySystemFill),
+                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                )
+                        }
+                        if !member.nameplate.isEmpty {
+                            Text(member.nameplate)
+                                .font(.caption2.bold())
+                                .foregroundStyle(Color(uiColor: .systemBrown))
+                        }
                     }
-                    Text(record.time.isEmpty ? "—" : record.time)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+
+                Text("\(displayHonor(member))荣誉值")
+                    .font(.caption.bold())
+                    .foregroundStyle(.primary)
             }
 
-            Spacer(minLength: 8)
-
-            Text(record.honorValue)
-                .font(.callout)
-                .monospacedDigit()
-                .foregroundStyle(.tint)
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
+    }
+
+    private var dateFilterButton: some View {
+        Button {
+            isDateFilterPresented = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .foregroundStyle(.tint)
+                Text(dateFilter.label)
+                    .font(.subheadline.bold())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.up")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.regularMaterial, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isDateFilterPresented, arrowEdge: .bottom) {
+            DateFilterPopover()
+                .presentationCompactAdaptation(.sheet)
+                .presentationDetents([.medium])
+        }
+        .accessibilityLabel("日期筛选，\(dateFilter.label)")
+    }
+
+    private func displayHonor(_ member: FamilyMember) -> Int {
+        let allMemberRecords = familyRecords.filter { $0.memberID == member.memberID }
+        let filteredMemberRecords = filteredRecords.filter { $0.memberID == member.memberID }
+        return MemberHonorDisplay.total(
+            apiHonor: member.apiHonor,
+            filteredRecords: filteredMemberRecords,
+            allRecords: allMemberRecords,
+            hasAnyRecordInRange: hasAnyRecordInRange
+        )
     }
 }

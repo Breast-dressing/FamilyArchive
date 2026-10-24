@@ -16,6 +16,9 @@ struct ParsedMember: Sendable, Hashable {
     let memberID: String
     let name: String
     let avatarURL: String
+    let medalLevel: String
+    let nameplate: String
+    let apiHonor: Int
 }
 
 struct ParsedFamily: Sendable {
@@ -27,6 +30,11 @@ struct ParsedFamily: Sendable {
     /// placeholder.
     let nameIsResolved: Bool
     let avatarURL: String
+    let signature: String
+    let honor: String
+    let weekRank: String
+    let memberCountText: String
+    let pkWins: String
     let members: [ParsedMember]
 }
 
@@ -47,12 +55,22 @@ enum FamilyService {
         var familyID = FamilyURLParser.extractFamilyID(from: resolvedURL) ?? ""
         var name = ""
         var avatarURL = ""
+        var signature = ""
+        var honor = ""
+        var weekRank = ""
+        var memberCountText = ""
+        var pkWins = ""
 
         if let html = await fetchHTML(resolvedURL),
            let ssr = FamilyPageParser.extractSSRJSON(html) {
             if let info = FamilyPageParser.parseFamilyInfo(ssr) {
                 name = info.name
                 avatarURL = info.avatarURL
+                signature = info.announcement
+                honor = info.honor
+                weekRank = info.rank
+                memberCountText = info.members
+                pkWins = info.pkWins
             }
             if familyID.isEmpty,
                let fallbackID = FamilyPageParser.familyIDFromSSR(ssr),
@@ -64,11 +82,14 @@ enum FamilyService {
         var members: [ParsedMember] = []
         if !familyID.isEmpty {
             members = await QQMusicAPI.fetchMembers(familyID: familyID)
-            if name.isEmpty || avatarURL.isEmpty {
-                if let info = await QQMusicAPI.fetchFamilyInfo(familyID: familyID) {
-                    if name.isEmpty { name = info.name }
-                    if avatarURL.isEmpty { avatarURL = info.avatarURL }
-                }
+            if let info = await QQMusicAPI.fetchFamilyInfo(familyID: familyID) {
+                if name.isEmpty { name = info.name }
+                if avatarURL.isEmpty { avatarURL = info.avatarURL }
+                if signature.isEmpty { signature = info.announcement }
+                if honor.isEmpty { honor = info.honor }
+                if weekRank.isEmpty { weekRank = info.rank }
+                if memberCountText.isEmpty { memberCountText = info.members }
+                if pkWins.isEmpty { pkWins = info.pkWins }
             }
         }
 
@@ -80,6 +101,11 @@ enum FamilyService {
             name: displayName,
             nameIsResolved: nameIsResolved,
             avatarURL: avatarURL,
+            signature: signature,
+            honor: honor,
+            weekRank: weekRank,
+            memberCountText: memberCountText,
+            pkWins: pkWins,
             members: members
         )
     }
@@ -164,11 +190,11 @@ enum FamilyService {
 
     private static func fallbackName(familyID: String, url: URL) -> String {
         if !familyID.isEmpty {
-            return "Family \(familyID)"
+            return "家族 \(familyID)"
         }
         if let host = url.host, !host.isEmpty {
             return host
         }
-        return "Family"
+        return "家族"
     }
 }

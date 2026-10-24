@@ -157,3 +157,119 @@ final class PendingImportStoreTests: XCTestCase {
         XCTAssertFalse(store.hasPending)
     }
 }
+
+final class FamilyPageParserFieldTests: XCTestCase {
+    func testParsesFamilySignatureStatsAndPKWins() {
+        let json: [String: Any] = [
+            "req_0": [
+                "data": [
+                    "Name": "jaychou",
+                    "Announcement": "进家族私 ❤️ Jay Chou.",
+                    "Avatar": "http://example.com/family.jpg",
+                    "DetailItemList": [
+                        ["Title": "2026.8万+", "Desc": "总荣誉值"],
+                        ["Title": "1", "Desc": "周排名"],
+                        ["Title": "30", "Desc": "成员"],
+                        ["Title": "54", "Desc": "PK胜场"]
+                    ]
+                ]
+            ]
+        ]
+
+        let info = FamilyPageParser.parseFamilyInfo(json)
+        XCTAssertEqual(info?.name, "jaychou")
+        XCTAssertEqual(info?.announcement, "进家族私 ❤️ Jay Chou.")
+        XCTAssertEqual(info?.avatarURL, "https://example.com/family.jpg")
+        XCTAssertEqual(info?.honor, "2026.8万+")
+        XCTAssertEqual(info?.rank, "1")
+        XCTAssertEqual(info?.members, "30")
+        XCTAssertEqual(info?.pkWins, "54")
+    }
+}
+
+final class QQMusicAPIMemberParsingTests: XCTestCase {
+    func testParsesMedalNameplateAndAPIHonor() {
+        let item: [String: Any] = [
+            "ItemID": "5203831",
+            "Title": "Tong",
+            "Pic": "http://example.com/tong.jpg",
+            "WearList": [
+                [
+                    "Title": "V132",
+                    "Segment": [
+                        "Contents": [
+                            ["Content": "NO.5203831"]
+                        ]
+                    ]
+                ] as [String: Any]
+            ],
+            "DescList": [
+                ["Desc": "831040荣誉值"]
+            ]
+        ]
+
+        let member = QQMusicAPI.parseMember(item)
+        XCTAssertEqual(member?.memberID, "5203831")
+        XCTAssertEqual(member?.name, "Tong")
+        XCTAssertEqual(member?.avatarURL, "https://example.com/tong.jpg")
+        XCTAssertEqual(member?.medalLevel, "V132")
+        XCTAssertEqual(member?.nameplate, "NO.5203831")
+        XCTAssertEqual(member?.apiHonor, 831040)
+    }
+}
+
+final class MemberHonorDisplayTests: XCTestCase {
+    private func record(_ value: String) -> HonorRecord {
+        HonorRecord(
+            memberID: "m1",
+            taskName: "task",
+            honorValue: value,
+            time: "2026年10月24日 10:00",
+            familyURL: "f"
+        )
+    }
+
+    func testUsesFilteredRecordsWhenRangeHasRecords() {
+        let filtered = [record("+300荣誉值")]
+        let all = filtered + [record("+200荣誉值")]
+        XCTAssertEqual(
+            MemberHonorDisplay.total(
+                apiHonor: 1000,
+                filteredRecords: filtered,
+                allRecords: all,
+                hasAnyRecordInRange: true
+            ),
+            300
+        )
+    }
+
+    func testShowsUnconsumedAPIHonorWhenRangeIsEmpty() {
+        let all = [record("+200荣誉值")]
+        XCTAssertEqual(
+            MemberHonorDisplay.total(
+                apiHonor: 1000,
+                filteredRecords: [],
+                allRecords: all,
+                hasAnyRecordInRange: false
+            ),
+            800
+        )
+    }
+}
+
+final class DateFilterStoreTests: XCTestCase {
+    func testDefaultRangeMatchesReferenceEightDayWindow() {
+        let reference = Calendar.current.date(
+            from: DateComponents(year: 2026, month: 10, day: 24, hour: 12)
+        )!
+        let store = DateFilterStore(referenceDate: reference)
+        XCTAssertEqual(store.label, "2026年10月17日 至 2026年10月24日")
+    }
+
+    func testDayKeyUsesReferenceFormat() {
+        XCTAssertEqual(
+            DateDisplay.dayKey(from: "2026年10月24日 10:00"),
+            "2026年10月24日"
+        )
+    }
+}

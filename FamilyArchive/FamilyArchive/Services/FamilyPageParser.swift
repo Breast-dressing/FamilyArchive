@@ -12,7 +12,12 @@ import Foundation
 enum FamilyPageParser {
     struct SSRFamilyInfo {
         let name: String
+        let announcement: String
         let avatarURL: String
+        let honor: String
+        let rank: String
+        let members: String
+        let pkWins: String
     }
 
     /// Port of `_extract_ssr_data`.
@@ -47,8 +52,34 @@ enum FamilyPageParser {
         for candidate in candidates {
             guard candidate["Name"] != nil || candidate["Avatar"] != nil else { continue }
             let name = JSONSupport.string(candidate["Name"])
+            let announcement = JSONSupport.string(candidate["Announcement"])
             let avatar = JSONSupport.normalizeAvatarURL(JSONSupport.string(candidate["Avatar"]))
-            return SSRFamilyInfo(name: name, avatarURL: avatar)
+            var honor = ""
+            var rank = ""
+            var members = ""
+            var pkWins = ""
+            for item in (candidate["DetailItemList"] as? [[String: Any]]) ?? [] {
+                let title = JSONSupport.string(item["Title"])
+                let desc = JSONSupport.string(item["Desc"])
+                if desc.contains("总荣誉值") {
+                    honor = title
+                } else if desc.contains("周排名") {
+                    rank = title
+                } else if desc.contains("成员") {
+                    members = title
+                } else if desc.contains("PK胜场") {
+                    pkWins = title
+                }
+            }
+            return SSRFamilyInfo(
+                name: name,
+                announcement: announcement,
+                avatarURL: avatar,
+                honor: honor,
+                rank: rank,
+                members: members,
+                pkWins: pkWins
+            )
         }
         return nil
     }

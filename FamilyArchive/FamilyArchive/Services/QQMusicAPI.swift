@@ -19,7 +19,12 @@ import Foundation
 
 struct QQFamilyInfo: Sendable {
     let name: String
+    let announcement: String
     let avatarURL: String
+    let honor: String
+    let rank: String
+    let members: String
+    let pkWins: String
 }
 
 enum QQMusicAPI {
@@ -242,21 +247,106 @@ enum QQMusicAPI {
         }
 
         let name = JSONSupport.string(data["Name"])
+        let announcement = JSONSupport.string(data["Announcement"])
         let avatar = JSONSupport.normalizeAvatarURL(JSONSupport.string(data["Avatar"]))
-        guard !name.isEmpty || !avatar.isEmpty else { return nil }
-        return QQFamilyInfo(name: name, avatarURL: avatar)
+        var honor = ""
+        var rank = ""
+        var members = ""
+        var pkWins = ""
+        for item in (data["DetailItemList"] as? [[String: Any]]) ?? [] {
+            let title = JSONSupport.string(item["Title"])
+            let desc = JSONSupport.string(item["Desc"])
+            if desc.contains("总荣誉值") {
+                honor = title
+            } else if desc.contains("周排名") {
+                rank = title
+            } else if desc.contains("成员") {
+                members = title
+            } else if desc.contains("PK胜场") {
+                pkWins = title
+            }
+        }
+        guard !name.isEmpty || !avatar.isEmpty || !announcement.isEmpty
+                || !honor.isEmpty || !rank.isEmpty || !members.isEmpty || !pkWins.isEmpty else {
+            return nil
+        }
+        return QQFamilyInfo(
+            name: name,
+            announcement: announcement,
+            avatarURL: avatar,
+            honor: honor,
+            rank: rank,
+            members: members,
+            pkWins: pkWins
+        )
     }
 
     // MARK: - Item parsing
 
-    /// Port of `_parse_member_item`, limited to the stored fields.
-    private static func parseMember(_ item: [String: Any]) -> ParsedMember? {
+    /// Port of `_clean_medal_level`.
+    static func cleanMedalLevel(_ value: String) -> String {
+        guard !value.isEmpty else { return "" }
+        guard let regex = try? NSRegularExpression(pattern: "V\\d+") else {
+            return value
+        }
+        let range = NSRange(value.startIndex..<value.endIndex, in: value)
+        guard let match = regex.firstMatch(in: value, options: [], range: range),
+              let matchRange = Range(match.range, in: value) else {
+            return value
+        }
+        return String(value[matchRange])
+    }
+
+    /// Port of `_parse_member_item` (medal, nameplate and API honor included).
+    static func parseMember(_ item: [String: Any]) -> ParsedMember? {
         let itemID = JSONSupport.string(item["ItemID"])
         let title = JSONSupport.string(item["Title"])
         guard !title.isEmpty else { return nil }
 
         let memberID = itemID.isEmpty ? "name_" + title : itemID
         let avatar = JSONSupport.normalizeAvatarURL(JSONSupport.string(item["Pic"]))
-        return ParsedMember(memberID: memberID, name: title, avatarURL: avatar)
+
+        var medal = ""
+        var nameplate = ""
+        for wear in (item["WearList"] as? [[String: Any]]) ?? [] {
+            let wearTitle = JSONSupport.string(wear["Title"])
+            if wearTitle.contains("V") {
+                medal = cleanMedalLevel(wearTitle)
+            }
+            if let segment = wear["Segment"] as? [String: Any],
+               let contents = segment["Contents"] as? [[String: Any]] {
+                for content in contents {
+                    let value = JSONSupport.string(content["Content"])
+                    if value.hasPrefix("NO.") {
+                        nameplate = value
+                    }
+                }
+            }
+        }
+
+        var honor = ""
+        for descItem in (item["DescList"] as? [[String: Any]]) ?? [] {
+            let desc = JSONSupport.string(descItem["Desc"])
+            if desc.contains("荣誉值"),
+               let regex = try? NSRegularExpression(pattern: "(\\d+)"),
+               let match = regex.firstMatch(
+                    in: desc,
+                    options: [],
+                    range: NSRange(desc.startIndex..<desc.endIndex, in: desc)
+               ),
+               let range = Range(match.range(at: 1), in: desc) {
+                honor = String(desc[range])
+                break
+            }
+        }
+
+        return ParsedMember(
+            memberID: memberID,
+            name: title,
+            avatarURL: avatar,
+            medalLevel: medal,
+            nameplate: nameplate,
+            apiHonor: Int(honor) ?? 0
+        )
     }
 }

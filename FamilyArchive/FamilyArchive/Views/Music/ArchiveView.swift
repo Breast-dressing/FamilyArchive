@@ -1,13 +1,13 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct ArchiveView: View {
     @Query(sort: \Family.createdAt, order: .reverse) private var families: [Family]
-    @Query private var members: [FamilyMember]
-    @Query private var records: [HonorRecord]
 
     private let columns = [
-        GridItem(.adaptive(minimum: 158), spacing: 12)
+        GridItem(.flexible(), spacing: 10),
+        GridItem(.flexible(), spacing: 10)
     ]
 
     var body: some View {
@@ -17,20 +17,16 @@ struct ArchiveView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("家族") {
+            Section("家族信息") {
                 if families.isEmpty {
                     Text("还没有家族。复制家族链接后，点击 ＋ → 家族。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 } else {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
+                    LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
                         ForEach(families) { family in
                             NavigationLink(value: family.url) {
-                                FamilyCard(
-                                    family: family,
-                                    totalHonor: totalHonor(for: family),
-                                    memberCount: memberCount(for: family)
-                                )
+                                FamilyCard(family: family)
                             }
                             .buttonStyle(.plain)
                         }
@@ -52,52 +48,45 @@ struct ArchiveView: View {
         }
         .listStyle(.insetGrouped)
     }
-
-    private func totalHonor(for family: Family) -> Int {
-        HonorValueParser.total(for: records.filter { $0.familyURL == family.url })
-    }
-
-    private func memberCount(for family: Family) -> Int {
-        members.filter { $0.familyURL == family.url }.count
-    }
 }
 
 private struct FamilyCard: View {
     let family: Family
-    let totalHonor: Int
-    let memberCount: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(alignment: .top) {
                 RemoteAvatarView(
                     urlString: family.avatarURL,
                     systemImage: "person.3.fill",
-                    size: 46
+                    size: 66
                 )
-                Spacer()
+                Spacer(minLength: 4)
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
 
+            Spacer(minLength: 0)
+
             Text(family.name.isEmpty ? "未命名家族" : family.name)
-                .font(.headline)
+                .font(.subheadline.bold())
+                .foregroundStyle(.primary)
                 .lineLimit(1)
 
-            Text("总荣誉值 \(totalHonor)")
-                .font(.subheadline)
-                .foregroundStyle(.tint)
-
-            Text("\(memberCount) 位成员")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if !family.honor.isEmpty {
+                Text("荣誉 \(family.honor)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .aspectRatio(5 / 3, contentMode: .fit)
         .background(
-            .regularMaterial,
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 20, style: .continuous)
         )
     }
 }
