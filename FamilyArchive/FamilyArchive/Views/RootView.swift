@@ -25,6 +25,7 @@ struct RootView: View {
     @State private var router = AppRouter()
     @State private var pendingImports = PendingImportStore()
     @State private var dateFilterStore = DateFilterStore()
+    @State private var familyAccessoryState = FamilyAccessoryState()
 
     @State private var filePickerPurpose: FilePickerPurpose?
     @State private var isFilePickerPresented = false
@@ -64,9 +65,13 @@ struct RootView: View {
             }
         }
         .tint(.blue)
+        .tabViewBottomAccessory {
+            FamilyBottomAccessory()
+        }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
+        .environment(familyAccessoryState)
         .environment(\.locale, Locale(identifier: "zh_CN"))
         .onChange(of: router.selectedTab) { previousTab, newTab in
             guard newTab == .plus else { return }
@@ -97,6 +102,11 @@ struct RootView: View {
             }
         } message: {
             Text(message?.message ?? "")
+        }
+        .onAppear {
+            #if DEBUG
+            UIPreviewSeed.seedIfNeeded(in: modelContext)
+            #endif
         }
         .overlay {
             if isImportingHAR {

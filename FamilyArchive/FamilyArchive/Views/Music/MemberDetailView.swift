@@ -9,13 +9,11 @@ struct MemberDetailView: View {
 
     @Environment(PendingImportStore.self) private var pendingImports
     @Environment(DateFilterStore.self) private var dateFilter
+    @Environment(FamilyAccessoryState.self) private var familyAccessory
 
     @Query private var members: [FamilyMember]
     @Query private var records: [HonorRecord]
     @Query private var families: [Family]
-
-    @State private var isDateFilterPresented = false
-    @Namespace private var zoomNamespace
 
     private var member: FamilyMember? {
         members.first { $0.memberID == memberID && $0.familyURL == familyURL }
@@ -112,27 +110,17 @@ struct MemberDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .safeAreaInset(edge: .bottom) {
-            dateFilterButton
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
+        .onAppear {
+            updateAccessory(member: member)
         }
-        .toolbar {
-            if let pending {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        PendingFilesView(familyURL: familyURL, memberName: member.name)
-                            .navigationTransition(
-                                .zoom(sourceID: "memberPendingFiles", in: zoomNamespace)
-                            )
-                    } label: {
-                        Image(systemName: "tray.and.arrow.down")
-                    }
-                    .matchedTransitionSource(id: "memberPendingFiles", in: zoomNamespace)
-                    .accessibilityLabel("待保存文件，\(pending.outcome.records.count) 条记录")
-                }
-            }
-
+        .onChange(of: dateFilter.label) { _, _ in
+            updateAccessory(member: member)
+        }
+        .onChange(of: pending?.id) { _, _ in
+            updateAccessory(member: member)
+        }
+        .onDisappear {
+            familyAccessory.hide()
         }
     }
 
@@ -221,33 +209,13 @@ struct MemberDetailView: View {
         }
     }
 
-    private var dateFilterButton: some View {
-        Button {
-            isDateFilterPresented = true
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar.badge.clock")
-                    .foregroundStyle(.tint)
-                Text(dateFilter.label)
-                    .font(.subheadline.bold())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.65)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.up")
-                    .foregroundStyle(.secondary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .popover(isPresented: $isDateFilterPresented, arrowEdge: .bottom) {
-            DateFilterPopover()
-                .presentationCompactAdaptation(.sheet)
-                .presentationDetents([.medium])
-        }
-        .accessibilityLabel("日期筛选，\(dateFilter.label)")
+    private func updateAccessory(member: FamilyMember) {
+        familyAccessory.show(
+            familyURL: familyURL,
+            memberName: member.name,
+            dateLabel: dateFilter.label,
+            pendingCount: pending?.outcome.records.count ?? 0
+        )
     }
 }
 

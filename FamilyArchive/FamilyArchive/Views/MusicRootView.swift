@@ -18,15 +18,15 @@ struct MusicRootView: View {
                     .allowsHitTesting(router.musicSection == .archive)
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarRole(.editor)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .principal) {
                     Picker("音乐分区", selection: $router.musicSection) {
                         Text("音乐").tag(MusicSection.music)
                         Text("我的").tag(MusicSection.archive)
                     }
                     .pickerStyle(.segmented)
-                    .fixedSize()
-                    .padding(.horizontal, 8)
+                    .frame(minWidth: 140)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {

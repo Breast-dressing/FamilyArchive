@@ -71,16 +71,16 @@ struct VideoView: View {
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarRole(.editor)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .principal) {
                     Picker("影视来源", selection: sourceBinding) {
                         ForEach(platforms, id: \.self) { platform in
                             Text(platform).tag(platform)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .fixedSize()
-                    .padding(.horizontal, 8)
+                    .frame(minWidth: 140)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
