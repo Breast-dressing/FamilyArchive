@@ -110,6 +110,7 @@ struct MemberDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .contentMargins(.bottom, 76, for: .scrollContent)
         .onAppear {
             updateAccessory(member: member)
         }

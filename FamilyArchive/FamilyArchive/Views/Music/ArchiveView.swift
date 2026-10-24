@@ -183,31 +183,33 @@ private struct FamilyCard: View {
     let family: Family
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: 10) {
             RemoteAvatarView(
                 urlString: family.avatarURL,
                 systemImage: "person.3.fill",
-                size: 72
+                size: 56
             )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(family.name.isEmpty ? "未命名家族" : family.name)
-                    .font(.title3.bold())
+                    .font(.headline.bold())
                     .foregroundStyle(.primary)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.8)
 
                 if !family.honor.isEmpty {
                     Text("荣誉 \(family.honor)")
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.75)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
         .background(
             Color(uiColor: .secondarySystemGroupedBackground),
             in: RoundedRectangle(cornerRadius: 24, style: .continuous)

@@ -93,6 +93,7 @@ struct FamilyDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .contentMargins(.bottom, 76, for: .scrollContent)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: familyURL) {
