@@ -65,7 +65,7 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .tabViewBottomAccessory {
+        .tabViewBottomAccessory(isEnabled: familyAccessoryState.isVisible) {
             FamilyBottomAccessory()
         }
         .environment(router)

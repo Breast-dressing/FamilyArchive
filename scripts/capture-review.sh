@@ -137,7 +137,7 @@ xcrun simctl io "$UDID" screenshot "$ROOT/music_tab_ui.png"
 
 echo "==> Family detail"
 tap_label "jaychou" || { echo "error: family card not found" >&2; exit 1; }
-wait_for "成员列表" 45 || { echo "error: family detail not found" >&2; exit 1; }
+wait_for "Tong" 45 || { echo "error: family detail not found" >&2; exit 1; }
 xcrun simctl io "$UDID" screenshot "$ROOT/family_detail_ui.png"
 
 echo "==> Screenshots:"
