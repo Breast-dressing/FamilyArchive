@@ -8,8 +8,12 @@ struct FeedView: View {
     @State private var selectedPlatform = ""
     @State private var isAccountsPresented = false
 
+    private var scopedAccounts: [Account] {
+        accounts.filter { $0.scope == AccountScope.feed.rawValue }
+    }
+
     private var platforms: [String] {
-        let unique = SocialPlatform.uniquePlatforms(from: accounts)
+        let unique = SocialPlatform.uniquePlatforms(from: scopedAccounts)
         return unique.isEmpty ? ["全部"] : unique
     }
 
@@ -18,7 +22,7 @@ struct FeedView: View {
     }
 
     private var filteredPosts: [FeedPost] {
-        if accounts.isEmpty {
+        if scopedAccounts.isEmpty {
             return posts
         }
         return posts.filter { $0.platform == effectivePlatform }
@@ -45,16 +49,17 @@ struct FeedView: View {
                     masonry
                 }
             }
-            .navigationTitle("动态")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .topBarLeading) {
                     Picker("动态来源", selection: sourceBinding) {
                         ForEach(platforms, id: \.self) { platform in
                             Text(platform).tag(platform)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 260)
+                    .fixedSize()
+                    .padding(.horizontal, 8)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -67,7 +72,7 @@ struct FeedView: View {
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {
-                AccountsView()
+                AccountsView(scope: .feed)
             }
         }
     }
@@ -77,7 +82,12 @@ struct FeedView: View {
             ForEach(0..<2, id: \.self) { column in
                 LazyVStack(spacing: 12) {
                     ForEach(posts(in: column)) { post in
-                        FeedPostCard(post: post, mediaHeight: mediaHeight(for: post))
+                        NavigationLink {
+                            FeedPostDetailView(post: post)
+                        } label: {
+                            FeedPostCard(post: post, mediaHeight: mediaHeight(for: post))
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .top)

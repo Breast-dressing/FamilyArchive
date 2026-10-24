@@ -2,36 +2,44 @@ import SwiftUI
 
 struct MusicRootView: View {
     @Environment(AppRouter.self) private var router
+    @State private var isAccountsPresented = false
 
     var body: some View {
         @Bindable var router = router
 
         NavigationStack(path: $router.musicPath) {
-            Group {
-                if router.musicSection == .music {
-                    MusicHomeView()
-                } else {
-                    ArchiveView()
-                }
+            ZStack {
+                MusicHomeView()
+                    .opacity(router.musicSection == .music ? 1 : 0)
+                    .allowsHitTesting(router.musicSection == .music)
+
+                ArchiveView()
+                    .opacity(router.musicSection == .archive ? 1 : 0)
+                    .allowsHitTesting(router.musicSection == .archive)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .topBarLeading) {
                     Picker("音乐分区", selection: $router.musicSection) {
                         Text("音乐").tag(MusicSection.music)
                         Text("档案").tag(MusicSection.archive)
                     }
                     .pickerStyle(.segmented)
-                    .frame(width: 190)
+                    .fixedSize()
+                    .padding(.horizontal, 8)
                 }
 
-                ToolbarItemGroup(placement: .topBarTrailing) {
-                    if router.musicSection == .archive {
-                        Button("更多") {}
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isAccountsPresented = true
+                    } label: {
+                        Image(systemName: "person.crop.circle")
                     }
-
-                    Button("账号") {}
+                    .accessibilityLabel("账号")
                 }
+            }
+            .sheet(isPresented: $isAccountsPresented) {
+                AccountsView(scope: .music)
             }
             .navigationDestination(for: String.self) { familyURL in
                 FamilyDetailView(familyURL: familyURL)

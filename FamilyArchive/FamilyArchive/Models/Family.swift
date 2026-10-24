@@ -26,6 +26,10 @@ final class Family {
     var memberCountText: String = ""
     /// API 返回的 PK 胜场
     var pkWins: String = ""
+    /// 族长（成员 memberID）
+    var leaderMemberID: String = ""
+    /// LazyVGrid 拖拽排序的持久化顺序
+    var sortOrder: Int = 0
     var createdAt: Date
 
     init(
@@ -38,6 +42,8 @@ final class Family {
         weekRank: String = "",
         memberCountText: String = "",
         pkWins: String = "",
+        leaderMemberID: String = "",
+        sortOrder: Int = 0,
         createdAt: Date = .now
     ) {
         self.url = url
@@ -49,6 +55,8 @@ final class Family {
         self.weekRank = weekRank
         self.memberCountText = memberCountText
         self.pkWins = pkWins
+        self.leaderMemberID = leaderMemberID
+        self.sortOrder = sortOrder
         self.createdAt = createdAt
     }
 }

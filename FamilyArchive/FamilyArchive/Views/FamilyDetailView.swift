@@ -95,6 +95,11 @@ struct FamilyDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom) {
+            dateFilterButton
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+        }
         .toolbar {
             if let pending {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -112,28 +117,12 @@ struct FamilyDetailView: View {
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink {
-                    FamilyImportActionsView(familyURL: familyURL)
-                        .navigationTransition(
-                            .zoom(sourceID: "familyPlus", in: zoomNamespace)
-                        )
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .matchedTransitionSource(id: "familyPlus", in: zoomNamespace)
-                .accessibilityLabel("添加")
-            }
-
-            ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: familyURL) {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel("分享家族")
             }
 
-            ToolbarItem(placement: .bottomBar) {
-                dateFilterButton
-            }
         }
     }
 
@@ -266,6 +255,7 @@ struct FamilyDetailView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(.regularMaterial, in: Capsule())
         }
         .buttonStyle(.plain)

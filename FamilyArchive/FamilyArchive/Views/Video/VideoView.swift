@@ -8,8 +8,12 @@ struct VideoView: View {
     @State private var selectedPlatform = ""
     @State private var isAccountsPresented = false
 
+    private var scopedAccounts: [Account] {
+        accounts.filter { $0.scope == AccountScope.video.rawValue }
+    }
+
     private var platforms: [String] {
-        let unique = SocialPlatform.uniquePlatforms(from: accounts)
+        let unique = SocialPlatform.uniquePlatforms(from: scopedAccounts)
         return unique.isEmpty ? ["全部"] : unique
     }
 
@@ -18,7 +22,7 @@ struct VideoView: View {
     }
 
     private var filteredShows: [VideoShow] {
-        if accounts.isEmpty {
+        if scopedAccounts.isEmpty {
             return shows
         }
         return shows.filter { $0.platform == effectivePlatform }
@@ -66,16 +70,17 @@ struct VideoView: View {
                     .padding(.vertical, 8)
                 }
             }
-            .navigationTitle("影视")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
+                ToolbarItem(placement: .topBarLeading) {
                     Picker("影视来源", selection: sourceBinding) {
                         ForEach(platforms, id: \.self) { platform in
                             Text(platform).tag(platform)
                         }
                     }
                     .pickerStyle(.segmented)
-                    .frame(maxWidth: 260)
+                    .fixedSize()
+                    .padding(.horizontal, 8)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -88,7 +93,7 @@ struct VideoView: View {
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {
-                AccountsView()
+                AccountsView(scope: .video)
             }
         }
     }

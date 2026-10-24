@@ -5,6 +5,8 @@ import SwiftUI
 import UIKit
 
 struct AccountsView: View {
+    let scope: AccountScope
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Account.createdAt, order: .reverse) private var accounts: [Account]
@@ -16,12 +18,20 @@ struct AccountsView: View {
     @State private var showError = false
     @State private var successMessage = ""
 
+    init(scope: AccountScope) {
+        self.scope = scope
+    }
+
+    private var filteredAccounts: [Account] {
+        accounts.filter { $0.scope == scope.rawValue }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                if !accounts.isEmpty {
+                if !filteredAccounts.isEmpty {
                     Section("已添加账号") {
-                        ForEach(accounts) { account in
+                        ForEach(filteredAccounts) { account in
                             accountRow(account)
                         }
                     }
@@ -149,6 +159,7 @@ struct AccountsView: View {
         let account = Account(
             username: draft.username.trimmingCharacters(in: .whitespacesAndNewlines),
             platform: draft.platform.rawValue,
+            scope: scope.rawValue,
             avatarData: draft.avatarData,
             platformLogoData: draft.platformLogoData
         )

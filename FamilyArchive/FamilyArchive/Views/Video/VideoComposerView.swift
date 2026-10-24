@@ -26,8 +26,12 @@ struct VideoComposerView: View {
         _episodeTitles = State(initialValue: files.map { $0.deletingPathExtension().lastPathComponent })
     }
 
+    private var scopedAccounts: [Account] {
+        accounts.filter { $0.scope == AccountScope.video.rawValue }
+    }
+
     private var platforms: [String] {
-        let unique = SocialPlatform.uniquePlatforms(from: accounts)
+        let unique = SocialPlatform.uniquePlatforms(from: scopedAccounts)
         return unique.isEmpty ? ["全部"] : unique
     }
 

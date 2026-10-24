@@ -18,8 +18,12 @@ struct FeedComposerView: View {
     @State private var errorMessage = ""
     @State private var showError = false
 
+    private var scopedAccounts: [Account] {
+        accounts.filter { $0.scope == AccountScope.feed.rawValue }
+    }
+
     private var platforms: [String] {
-        let unique = SocialPlatform.uniquePlatforms(from: accounts)
+        let unique = SocialPlatform.uniquePlatforms(from: scopedAccounts)
         return unique.isEmpty ? ["全部"] : unique
     }
 
@@ -27,7 +31,7 @@ struct FeedComposerView: View {
         NavigationStack {
             Form {
                 Section("动态来源") {
-                    if accounts.isEmpty {
+                    if scopedAccounts.isEmpty {
                         Text("请先在“账号”中添加平台。")
                             .foregroundStyle(.secondary)
                         Text("当前将发布到“全部”来源。")
@@ -155,7 +159,7 @@ struct FeedComposerView: View {
             showError = true
             return
         }
-        if !accounts.isEmpty, selectedPlatform == "全部" {
+        if !scopedAccounts.isEmpty, selectedPlatform == "全部" {
             errorMessage = "请选择具体的动态来源。"
             showError = true
             return

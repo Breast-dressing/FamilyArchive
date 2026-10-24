@@ -25,7 +25,6 @@ struct RootView: View {
     @State private var router = AppRouter()
     @State private var pendingImports = PendingImportStore()
     @State private var dateFilterStore = DateFilterStore()
-    @State private var importCoordinator = FileImportCoordinator()
 
     @State private var filePickerPurpose: FilePickerPurpose?
     @State private var isFilePickerPresented = false
@@ -68,14 +67,7 @@ struct RootView: View {
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
-        .environment(importCoordinator)
         .environment(\.locale, Locale(identifier: "zh_CN"))
-        .onChange(of: importCoordinator.request) { _, request in
-            guard let request else { return }
-            filePickerPurpose = .har(familyURL: request.familyURL)
-            isFilePickerPresented = true
-            importCoordinator.request = nil
-        }
         .onChange(of: router.selectedTab) { previousTab, newTab in
             guard newTab == .plus else { return }
             router.selectedTab = previousTab
@@ -238,7 +230,8 @@ struct RootView: View {
             if !parsed.familyID.isEmpty {
                 existing.familyID = parsed.familyID
             }
-            if !parsed.avatarURL.isEmpty {
+            if !parsed.avatarURL.isEmpty, parsed.avatarURL != existing.avatarURL {
+                recordAvatarHistory(familyURL: urlString, avatarURL: parsed.avatarURL)
                 existing.avatarURL = parsed.avatarURL
             }
             if !parsed.signature.isEmpty { existing.signature = parsed.signature }
@@ -247,6 +240,7 @@ struct RootView: View {
             if !parsed.memberCountText.isEmpty { existing.memberCountText = parsed.memberCountText }
             if !parsed.pkWins.isEmpty { existing.pkWins = parsed.pkWins }
         } else {
+            let nextSortOrder = (storedFamilies.map(\.sortOrder).max() ?? 0) + 1
             let family = Family(
                 url: urlString,
                 name: parsed.name.isEmpty ? "家族" : parsed.name,
@@ -256,9 +250,13 @@ struct RootView: View {
                 honor: parsed.honor,
                 weekRank: parsed.weekRank,
                 memberCountText: parsed.memberCountText,
-                pkWins: parsed.pkWins
+                pkWins: parsed.pkWins,
+                sortOrder: nextSortOrder
             )
             modelContext.insert(family)
+            if !parsed.avatarURL.isEmpty {
+                recordAvatarHistory(familyURL: urlString, avatarURL: parsed.avatarURL)
+            }
         }
 
         let storedMembers = (try? modelContext.fetch(FetchDescriptor<FamilyMember>())) ?? []
@@ -296,6 +294,24 @@ struct RootView: View {
         } catch {
             return error.localizedDescription
         }
+    }
+
+    /// Keep a time-stamped avatar history whenever the resolved URL changes.
+    private func recordAvatarHistory(familyURL: String, avatarURL: String) {
+        guard !avatarURL.isEmpty else { return }
+        let histories = (try? modelContext.fetch(FetchDescriptor<FamilyAvatarHistory>())) ?? []
+        for history in histories
+        where history.familyURL == familyURL && history.endDate == nil {
+            history.endDate = .now
+        }
+        modelContext.insert(
+            FamilyAvatarHistory(
+                familyURL: familyURL,
+                avatarURL: avatarURL,
+                startDate: .now,
+                endDate: nil
+            )
+        )
     }
 
     // MARK: - File selection

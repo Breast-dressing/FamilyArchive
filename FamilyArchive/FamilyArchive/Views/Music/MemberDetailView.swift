@@ -112,6 +112,11 @@ struct MemberDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .bottom) {
+            dateFilterButton
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+        }
         .toolbar {
             if let pending {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -124,13 +129,10 @@ struct MemberDetailView: View {
                         Image(systemName: "tray.and.arrow.down")
                     }
                     .matchedTransitionSource(id: "memberPendingFiles", in: zoomNamespace)
-                    .accessibilityLabel("待保存文件")
+                    .accessibilityLabel("待保存文件，\(pending.outcome.records.count) 条记录")
                 }
             }
 
-            ToolbarItem(placement: .bottomBar) {
-                dateFilterButton
-            }
         }
     }
 
@@ -236,6 +238,7 @@ struct MemberDetailView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(.regularMaterial, in: Capsule())
         }
         .buttonStyle(.plain)
