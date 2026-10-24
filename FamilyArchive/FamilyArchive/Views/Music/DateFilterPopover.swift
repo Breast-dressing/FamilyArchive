@@ -9,7 +9,7 @@ struct DateFilterPopover: View {
 
         NavigationStack {
             Form {
-                Section("选择日期") {
+                Section {
                     DatePicker(
                         "起始日期",
                         selection: $filter.startDate,
@@ -20,6 +20,8 @@ struct DateFilterPopover: View {
                         selection: $filter.endDate,
                         displayedComponents: .date
                     )
+                } header: {
+                    Text("选择日期")
                 } footer: {
                     Text("筛选 \(dateFilter.label)，即按自然日筛选记录。")
                 }
