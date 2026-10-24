@@ -22,7 +22,7 @@ struct MusicRootView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Picker("音乐分区", selection: $router.musicSection) {
                         Text("音乐").tag(MusicSection.music)
-                        Text("档案").tag(MusicSection.archive)
+                        Text("我的").tag(MusicSection.archive)
                     }
                     .pickerStyle(.segmented)
                     .fixedSize()
