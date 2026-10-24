@@ -106,6 +106,9 @@ struct RootView: View {
         .onAppear {
             #if DEBUG
             UIPreviewSeed.seedIfNeeded(in: modelContext)
+            if ProcessInfo.processInfo.arguments.contains("-UIPreviewArchive") {
+                router.musicSection = .archive
+            }
             #endif
         }
         .overlay {

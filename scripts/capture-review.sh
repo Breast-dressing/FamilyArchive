@@ -18,6 +18,27 @@ SNAP="$(mktemp)"
 cleanup() { rm -f "$SNAP"; }
 trap cleanup EXIT
 
+run_with_timeout() {
+  local secs="$1"
+  shift
+  python3 - "$secs" "$@" <<'PY'
+import os, signal, subprocess, sys
+secs = float(sys.argv[1])
+cmd = sys.argv[2:]
+process = subprocess.Popen(cmd, start_new_session=True)
+try:
+    rc = process.wait(timeout=secs)
+except subprocess.TimeoutExpired:
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    process.wait()
+    raise SystemExit(124)
+raise SystemExit(rc)
+PY
+}
+
 if ! command -v xcrun >/dev/null 2>&1; then
   echo "error: xcrun not found" >&2
   exit 1
@@ -51,14 +72,14 @@ fi
 echo "==> Simulator: $UDID"
 
 xcrun simctl boot "$UDID" 2>/dev/null || true
-xcrun simctl bootstatus "$UDID" -b
+run_with_timeout 600 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-xcrun simctl launch "$UDID" "$BUNDLE_ID" -UIPreviewSeed >/dev/null
-"${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
+xcrun simctl launch "$UDID" "$BUNDLE_ID" -UIPreviewSeed -UIPreviewArchive >/dev/null
+run_with_timeout 90 "${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
 
 snapshot() {
-  "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json > "$SNAP" 2>/dev/null
+  run_with_timeout 60 "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json > "$SNAP" 2>/dev/null
 }
 
 find_ref() {
@@ -89,7 +110,7 @@ tap_label() {
   local label="$1"
   local ref
   if snapshot && ref=$(find_ref "$label"); then
-    "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1
+    run_with_timeout 30 "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1
     sleep 1
     return 0
   fi
@@ -109,16 +130,14 @@ wait_for() {
   return 1
 }
 
-echo "==> Music tab"
+echo "==> Music tab (archive default via -UIPreviewArchive)"
 tap_label "音乐" || { echo "error: music tab not found" >&2; exit 1; }
-wait_for "家族信息" 20 || true
-tap_label "我的" || { echo "error: 我的 tab not found" >&2; exit 1; }
-wait_for "家族信息" 30 || { echo "error: family grid not found" >&2; exit 1; }
+wait_for "家族信息" 45 || { echo "error: family grid not found" >&2; exit 1; }
 xcrun simctl io "$UDID" screenshot "$ROOT/music_tab_ui.png"
 
 echo "==> Family detail"
 tap_label "jaychou" || { echo "error: family card not found" >&2; exit 1; }
-wait_for "成员列表" 30 || { echo "error: family detail not found" >&2; exit 1; }
+wait_for "成员列表" 45 || { echo "error: family detail not found" >&2; exit 1; }
 xcrun simctl io "$UDID" screenshot "$ROOT/family_detail_ui.png"
 
 echo "==> Screenshots:"
