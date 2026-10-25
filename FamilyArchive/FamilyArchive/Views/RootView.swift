@@ -25,7 +25,8 @@ struct RootView: View {
     @State private var router = AppRouter()
     @State private var pendingImports = PendingImportStore()
     @State private var dateFilterStore = DateFilterStore()
-    @State private var familyAccessoryState = FamilyAccessoryState()
+    @State private var accessoryState = RootAccessoryState()
+    @Namespace private var accessoryNamespace
 
     @State private var filePickerPurpose: FilePickerPurpose?
     @State private var isFilePickerPresented = false
@@ -42,6 +43,8 @@ struct RootView: View {
     }
 
     var body: some View {
+        @Bindable var accessory = accessoryState
+
         TabView(selection: tabSelection) {
             Tab("动态", systemImage: "square.stack", value: RootTab.feed) {
                 FeedView()
@@ -65,18 +68,62 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .tabViewBottomAccessory(isEnabled: familyAccessoryState.isVisible) {
-            FamilyBottomAccessory()
+        .tabViewBottomAccessory(isEnabled: isAccessoryEnabled) {
+            switch router.selectedTab {
+            case .feed:
+                FeedBottomAccessory(
+                    state: accessoryState,
+                    namespace: accessoryNamespace
+                )
+
+            case .video:
+                SearchBottomAccessory(
+                    text: $accessory.videoSearchText,
+                    prompt: "搜索影视"
+                )
+
+            case .music:
+                switch accessoryState.musicForm {
+                case .search:
+                    SearchBottomAccessory(
+                        text: $accessory.musicSearchText,
+                        prompt: "搜索音乐"
+                    )
+                case .family:
+                    FamilyBottomAccessory(
+                        state: accessoryState,
+                        namespace: accessoryNamespace
+                    )
+                }
+
+            case .more, .plus:
+                EmptyView()
+            }
         }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
-        .environment(familyAccessoryState)
+        .environment(accessoryState)
         .environment(\.locale, Locale(identifier: "zh_CN"))
         .onChange(of: router.selectedTab) { previousTab, newTab in
             guard newTab == .plus else { return }
             router.selectedTab = previousTab
             handlePlusButtonTapped()
+        }
+        .onChange(of: router.selectedTab) { _, _ in
+            syncAccessoryWithNavigation()
+        }
+        .onChange(of: router.musicPath) { _, _ in
+            syncAccessoryWithNavigation()
+        }
+        .onChange(of: dateFilterStore.label) { _, newLabel in
+            accessoryState.dateLabel = newLabel
+            if accessoryState.musicForm == .family {
+                accessoryState.updateFamily(
+                    dateLabel: newLabel,
+                    pendingCount: accessoryState.pendingCount
+                )
+            }
         }
         .sheet(item: $router.plusRoute) { route in
             PlusActionsSheet(route: route) { action in
@@ -88,6 +135,35 @@ struct RootView: View {
         }
         .sheet(isPresented: $isVideoComposerPresented) {
             VideoComposerView(files: videoComposerFiles)
+        }
+        .sheet(isPresented: $accessory.isDateFilterPresented) {
+            DateFilterPopover()
+                .navigationTransition(
+                    .zoom(
+                        sourceID: AccessoryTransition.dateFilter,
+                        in: accessoryNamespace
+                    )
+                )
+        }
+        .sheet(isPresented: $accessory.isPendingFilesPresented) {
+            if let familyURL = accessoryState.familyURL {
+                PendingFilesView(
+                    familyURL: familyURL,
+                    memberName: accessoryState.memberName
+                )
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Color(uiColor: .systemBackground))
+                .navigationTransition(
+                    .zoom(
+                        sourceID: AccessoryTransition.pendingFiles,
+                        in: accessoryNamespace
+                    )
+                )
+            }
+        }
+        .sheet(isPresented: $accessory.isFeedSearchPresented) {
+            FeedSearchView(searchText: $accessory.feedSearchText)
         }
         .fileImporter(
             isPresented: $isFilePickerPresented,
@@ -109,7 +185,17 @@ struct RootView: View {
             if ProcessInfo.processInfo.arguments.contains("-UIPreviewArchive") {
                 router.musicSection = .archive
             }
+            if ProcessInfo.processInfo.arguments.contains("-UIPreviewPending"),
+               let previewFamily = (try? modelContext.fetch(FetchDescriptor<Family>()))?
+                   .first(where: { $0.name == "jaychou" }) {
+                pendingImports.setPending(
+                    UIPreviewSeed.pendingOutcome(),
+                    for: previewFamily.url
+                )
+            }
             #endif
+            accessoryState.dateLabel = dateFilterStore.label
+            syncAccessoryWithNavigation()
         }
         .overlay {
             if isImportingHAR {
@@ -119,6 +205,35 @@ struct RootView: View {
     }
 
     // MARK: - Tab selection
+
+    /// `更多` and the detached `＋` must not reserve an empty accessory bar.
+    private var isAccessoryEnabled: Bool {
+        switch router.selectedTab {
+        case .feed, .video, .music:
+            return true
+        case .more, .plus:
+            return false
+        }
+    }
+
+    /// RootView is the single owner of the accessory lifecycle. Pushing a
+    /// family value into the Music path shows the date form; popping back to
+    /// the path root returns to the search field. Member pages update the
+    /// same object without hiding it.
+    private func syncAccessoryWithNavigation() {
+        guard let familyURL = router.musicPath.last else {
+            accessoryState.leaveFamily()
+            return
+        }
+
+        if accessoryState.familyURL != familyURL {
+            accessoryState.enterFamily(
+                familyURL: familyURL,
+                dateLabel: dateFilterStore.label,
+                pendingCount: pendingImports.pending(for: familyURL)?.outcome.records.count ?? 0
+            )
+        }
+    }
 
     private var tabSelection: Binding<RootTab> {
         Binding(

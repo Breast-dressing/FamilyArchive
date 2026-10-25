@@ -78,5 +78,38 @@ enum UIPreviewSeed {
 
         try? context.save()
     }
+
+    /// Debug-only pending import used by the UI review route to exercise the
+    /// "待保存文件" sheet without a real HAR selection.
+    static func pendingOutcome() -> HARImportOutcome {
+        let records = [
+            ParsedHonorRecord(
+                memberName: "Tong ❤️",
+                taskName: "家族任务",
+                honorValue: "+60荣誉值",
+                time: "2026年10月24日 10:00"
+            ),
+            ParsedHonorRecord(
+                memberName: "晓放的小企鹅",
+                taskName: "家族任务",
+                honorValue: "+40荣誉值",
+                time: "2026年10月24日 10:05"
+            ),
+            ParsedHonorRecord(
+                memberName: "lollipop",
+                taskName: "家族任务",
+                honorValue: "+30荣誉值",
+                time: "2026年10月24日 10:10"
+            )
+        ]
+        return HARImportOutcome(
+            records: records,
+            warnings: [],
+            fileCount: 1,
+            matchedResponseCount: 1,
+            keptResponseCount: 1,
+            fileNames: ["family-honor.har"]
+        )
+    }
 }
 #endif

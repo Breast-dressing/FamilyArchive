@@ -2,6 +2,8 @@ import SwiftData
 import SwiftUI
 
 struct VideoView: View {
+    @Environment(RootAccessoryState.self) private var accessoryState
+
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \VideoShow.createdAt, order: .reverse) private var shows: [VideoShow]
 
@@ -22,10 +24,19 @@ struct VideoView: View {
     }
 
     private var filteredShows: [VideoShow] {
-        if scopedAccounts.isEmpty {
-            return shows
+        let scoped = scopedAccounts.isEmpty
+            ? shows
+            : shows.filter { $0.platform == effectivePlatform }
+        let query = accessoryState.videoSearchText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return scoped }
+
+        return scoped.filter { show in
+            show.title.localizedCaseInsensitiveContains(query)
+                || show.synopsis.localizedCaseInsensitiveContains(query)
+                || show.cast.localizedCaseInsensitiveContains(query)
+                || show.platform.localizedCaseInsensitiveContains(query)
         }
-        return shows.filter { $0.platform == effectivePlatform }
     }
 
     private var sourceBinding: Binding<String> {
@@ -70,6 +81,7 @@ struct VideoView: View {
                     .padding(.vertical, 8)
                 }
             }
+            .contentMargins(.bottom, 76, for: .scrollContent)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {

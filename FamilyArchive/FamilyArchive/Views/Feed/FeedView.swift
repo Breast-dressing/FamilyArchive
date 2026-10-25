@@ -2,6 +2,9 @@ import SwiftData
 import SwiftUI
 
 struct FeedView: View {
+    @Environment(DateFilterStore.self) private var dateFilter
+    @Environment(RootAccessoryState.self) private var accessoryState
+
     @Query(sort: \Account.createdAt) private var accounts: [Account]
     @Query(sort: \FeedPost.createdAt, order: .reverse) private var posts: [FeedPost]
 
@@ -22,10 +25,18 @@ struct FeedView: View {
     }
 
     private var filteredPosts: [FeedPost] {
-        if scopedAccounts.isEmpty {
-            return posts
+        let scoped = scopedAccounts.isEmpty
+            ? posts
+            : posts.filter { $0.platform == effectivePlatform }
+        let query = accessoryState.feedSearchText
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return scoped.filter { post in
+            guard dateFilter.filter.contains(post.createdAt) else { return false }
+            guard !query.isEmpty else { return true }
+            return post.caption.localizedCaseInsensitiveContains(query)
+                || post.platform.localizedCaseInsensitiveContains(query)
         }
-        return posts.filter { $0.platform == effectivePlatform }
     }
 
     private var sourceBinding: Binding<String> {
@@ -49,6 +60,7 @@ struct FeedView: View {
                     masonry
                 }
             }
+            .contentMargins(.bottom, 76, for: .scrollContent)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {

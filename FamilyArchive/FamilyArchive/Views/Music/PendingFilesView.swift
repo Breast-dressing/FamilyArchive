@@ -1,6 +1,8 @@
 import SwiftData
 import SwiftUI
 
+/// App Store style, fully opaque pending files sheet. The list chrome is
+/// hidden so the adaptive `systemBackground` color is the only backdrop.
 struct PendingFilesView: View {
     let familyURL: String
     let memberName: String?
@@ -28,30 +30,37 @@ struct PendingFilesView: View {
     }
 
     var body: some View {
-        Group {
-            if let pending {
-                List {
-                    PendingImportPreview(
-                        pending: pending,
-                        records: records,
-                        onSave: { save(pending) },
-                        onCancel: {
-                            pendingImports.clear(for: familyURL)
-                            dismiss()
-                        }
+        VStack(spacing: 0) {
+            AppStoreSheetHeader(title: "待保存文件") {
+                dismiss()
+            }
+
+            Group {
+                if let pending {
+                    List {
+                        PendingImportPreview(
+                            pending: pending,
+                            records: records,
+                            onSave: { save(pending) },
+                            onCancel: {
+                                pendingImports.clear(for: familyURL)
+                                dismiss()
+                            }
+                        )
+                    }
+                    .listStyle(.insetGrouped)
+                    .scrollContentBackground(.hidden)
+                } else {
+                    ContentUnavailableView(
+                        "暂无待保存文件",
+                        systemImage: "tray",
+                        description: Text("请先选择并解析记录文件。")
                     )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .listStyle(.insetGrouped)
-            } else {
-                ContentUnavailableView(
-                    "暂无待保存文件",
-                    systemImage: "tray",
-                    description: Text("请先选择并解析记录文件。")
-                )
             }
         }
-        .navigationTitle("待保存文件")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(Color(uiColor: .systemBackground))
         .alert("提示", isPresented: $showSummary) {
             Button(saveSucceeded ? "完成" : "好") {
                 if saveSucceeded {

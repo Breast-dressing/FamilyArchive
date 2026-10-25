@@ -8,7 +8,7 @@ struct FamilyDetailView: View {
 
     @Environment(PendingImportStore.self) private var pendingImports
     @Environment(DateFilterStore.self) private var dateFilter
-    @Environment(FamilyAccessoryState.self) private var familyAccessory
+    @Environment(RootAccessoryState.self) private var accessoryState
 
     @Query private var families: [Family]
     @Query private var allMembers: [FamilyMember]
@@ -111,9 +111,6 @@ struct FamilyDetailView: View {
         }
         .onChange(of: pending?.id) { _, _ in
             updateAccessory()
-        }
-        .onDisappear {
-            familyAccessory.hide()
         }
     }
 
@@ -230,9 +227,8 @@ struct FamilyDetailView: View {
     }
 
     private func updateAccessory() {
-        familyAccessory.show(
+        accessoryState.enterFamily(
             familyURL: familyURL,
-            memberName: nil,
             dateLabel: dateFilter.label,
             pendingCount: pending?.outcome.records.count ?? 0
         )

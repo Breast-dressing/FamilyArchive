@@ -273,3 +273,54 @@ final class DateFilterStoreTests: XCTestCase {
         )
     }
 }
+
+final class RootAccessoryStateTests: XCTestCase {
+    func testLeavingFamilyRestoresSearchForm() {
+        let state = RootAccessoryState()
+        state.enterFamily(familyURL: "u", dateLabel: "2026年10月17日 至 2026年10月24日", pendingCount: 3)
+        XCTAssertEqual(state.musicForm, .family)
+        XCTAssertEqual(state.pendingCount, 3)
+
+        state.isDateFilterPresented = true
+        state.isPendingFilesPresented = true
+        state.leaveFamily()
+
+        XCTAssertEqual(state.musicForm, .search)
+        XCTAssertNil(state.familyURL)
+        XCTAssertNil(state.memberName)
+        XCTAssertEqual(state.pendingCount, 0)
+        XCTAssertFalse(state.isDateFilterPresented)
+        XCTAssertFalse(state.isPendingFilesPresented)
+    }
+
+    func testEnteringMemberKeepsFamilyFormAndDateLabel() {
+        let state = RootAccessoryState()
+        state.enterFamily(familyURL: "u", dateLabel: "range", pendingCount: 1)
+        state.enterMember(
+            name: "Tong",
+            familyURL: "u",
+            dateLabel: "range",
+            pendingCount: 2
+        )
+
+        XCTAssertEqual(state.musicForm, .family)
+        XCTAssertEqual(state.memberName, "Tong")
+        XCTAssertEqual(state.dateLabel, "range")
+        XCTAssertEqual(state.pendingCount, 2)
+    }
+
+    func testReturningToFamilyClearsMemberButKeepsDateForm() {
+        let state = RootAccessoryState()
+        state.enterMember(
+            name: "Tong",
+            familyURL: "u",
+            dateLabel: "range",
+            pendingCount: 2
+        )
+        state.enterFamily(familyURL: "u", dateLabel: "range", pendingCount: 2)
+
+        XCTAssertEqual(state.musicForm, .family)
+        XCTAssertNil(state.memberName)
+        XCTAssertEqual(state.dateLabel, "range")
+    }
+}

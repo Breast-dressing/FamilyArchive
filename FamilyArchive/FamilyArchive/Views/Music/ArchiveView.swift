@@ -86,6 +86,7 @@ struct ArchiveView: View {
             }
             .padding(.vertical, 8)
         }
+        .contentMargins(.bottom, 76, for: .scrollContent)
         .background(Color(uiColor: .systemGroupedBackground))
         .onAppear {
             displayedFamilies = families

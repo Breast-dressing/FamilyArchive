@@ -9,7 +9,7 @@ struct MemberDetailView: View {
 
     @Environment(PendingImportStore.self) private var pendingImports
     @Environment(DateFilterStore.self) private var dateFilter
-    @Environment(FamilyAccessoryState.self) private var familyAccessory
+    @Environment(RootAccessoryState.self) private var accessoryState
 
     @Query private var members: [FamilyMember]
     @Query private var records: [HonorRecord]
@@ -120,9 +120,6 @@ struct MemberDetailView: View {
         .onChange(of: pending?.id) { _, _ in
             updateAccessory(member: member)
         }
-        .onDisappear {
-            familyAccessory.hide()
-        }
     }
 
     private func memberInfoCard(_ member: FamilyMember) -> some View {
@@ -211,9 +208,9 @@ struct MemberDetailView: View {
     }
 
     private func updateAccessory(member: FamilyMember) {
-        familyAccessory.show(
+        accessoryState.enterMember(
+            name: member.name,
             familyURL: familyURL,
-            memberName: member.name,
             dateLabel: dateFilter.label,
             pendingCount: pending?.outcome.records.count ?? 0
         )

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Capture the two review screenshots on the pinned iPhone 18 Pro simulator.
+# Capture the review screenshots on the pinned iPhone 18 Pro simulator and
+# exercise the bottom accessory lifecycle end to end.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -10,6 +11,8 @@ SCHEME="FamilyArchive"
 BUNDLE_ID="com.example.FamilyArchive"
 DEVICE_NAME="iPhone 18 Pro"
 IOS_VERSION="27.0"
+SCREEN_WIDTH=402
+SCREEN_HEIGHT=874
 DERIVED_DATA="$ROOT/build/review/DerivedData"
 APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/$SCHEME.app"
 MCP=(npx --yes xcodebuildmcp@2.7.0 ui-automation)
@@ -75,7 +78,8 @@ xcrun simctl boot "$UDID" 2>/dev/null || true
 run_with_timeout 600 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-xcrun simctl launch "$UDID" "$BUNDLE_ID" -UIPreviewSeed -UIPreviewArchive >/dev/null
+xcrun simctl launch "$UDID" "$BUNDLE_ID" \
+  -UIPreviewSeed -UIPreviewArchive -UIPreviewPending >/dev/null
 run_with_timeout 90 "${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
 
 snapshot() {
@@ -130,15 +134,79 @@ wait_for() {
   return 1
 }
 
-echo "==> Music tab (archive default via -UIPreviewArchive)"
+swipe_back() {
+  run_with_timeout 30 "${MCP[@]}" gesture \
+    --simulator-id "$UDID" \
+    --preset swipe-from-left-edge \
+    --screen-width "$SCREEN_WIDTH" \
+    --screen-height "$SCREEN_HEIGHT" \
+    --duration 0.3 >/dev/null 2>&1
+  sleep 1.5
+}
+
+shot() {
+  xcrun simctl io "$UDID" screenshot "$ROOT/$1"
+  echo "    captured $1"
+}
+
+echo "==> Music root (archive default, search accessory)"
 tap_label "音乐" || { echo "error: music tab not found" >&2; exit 1; }
 wait_for "家族信息" 45 || { echo "error: family grid not found" >&2; exit 1; }
-xcrun simctl io "$UDID" screenshot "$ROOT/music_tab_ui.png"
+shot music_tab_ui.png
 
-echo "==> Family detail"
+echo "==> Family detail (date + pending accessory)"
 tap_label "jaychou" || { echo "error: family card not found" >&2; exit 1; }
 wait_for "Tong" 45 || { echo "error: family detail not found" >&2; exit 1; }
-xcrun simctl io "$UDID" screenshot "$ROOT/family_detail_ui.png"
+shot family_detail_ui.png
+
+echo "==> Member detail"
+tap_label "Tong" || { echo "error: member row not found" >&2; exit 1; }
+wait_for "总荣誉" 45 || { echo "error: member detail not found" >&2; exit 1; }
+shot member_detail_ui.png
+
+echo "==> Back to family detail (accessory must stay in date form)"
+swipe_back
+wait_for "Tong" 45 || { echo "error: family detail did not return" >&2; exit 1; }
+shot family_return_ui.png
+
+echo "==> Date filter sheet"
+tap_label "日期筛选" || { echo "error: date accessory not found" >&2; exit 1; }
+wait_for "起始日期" 30 || { echo "error: date filter sheet not found" >&2; exit 1; }
+shot date_filter_sheet_ui.png
+tap_label "关闭" || { echo "error: date filter close button not found" >&2; exit 1; }
+wait_for "Tong" 30 || { echo "error: date filter did not dismiss" >&2; exit 1; }
+
+echo "==> Pending files sheet"
+tap_label "待保存文件" || { echo "error: pending accessory not found" >&2; exit 1; }
+wait_for "保存文件" 30 || { echo "error: pending sheet not found" >&2; exit 1; }
+shot pending_files_sheet_ui.png
+tap_label "关闭" || { echo "error: pending close button not found" >&2; exit 1; }
+wait_for "Tong" 30 || { echo "error: pending sheet did not dismiss" >&2; exit 1; }
+
+echo "==> Back to archive (search accessory)"
+swipe_back
+wait_for "家族信息" 45 || { echo "error: archive did not return" >&2; exit 1; }
+shot archive_return_ui.png
+
+echo "==> Feed tab accessory"
+tap_label "动态" || { echo "error: feed tab not found" >&2; exit 1; }
+wait_for "暂无动态" 30 || { echo "error: feed page not found" >&2; exit 1; }
+shot feed_tab_ui.png
+
+echo "==> Video tab accessory"
+tap_label "影视" || { echo "error: video tab not found" >&2; exit 1; }
+wait_for "暂无影视" 30 || { echo "error: video page not found" >&2; exit 1; }
+shot video_tab_ui.png
+
+echo "==> More tab (no accessory container)"
+tap_label "更多" || { echo "error: more tab not found" >&2; exit 1; }
+sleep 2
+shot more_tab_ui.png
+
+echo "==> Music tab again"
+tap_label "音乐" || { echo "error: music tab not found" >&2; exit 1; }
+wait_for "家族信息" 30 || { echo "error: archive did not return" >&2; exit 1; }
+shot music_back_ui.png
 
 echo "==> Screenshots:"
-ls -lh "$ROOT/music_tab_ui.png" "$ROOT/family_detail_ui.png"
+ls -lh "$ROOT"/*.png
