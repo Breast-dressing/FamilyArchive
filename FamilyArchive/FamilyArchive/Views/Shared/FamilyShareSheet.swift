@@ -2,12 +2,58 @@ import LinkPresentation
 import SwiftUI
 import UIKit
 
-/// System share sheet for a family. The header preview is supplied through
-/// `LPLinkMetadata`; "拷贝" and "图片" are real `UIActivity` actions.
-struct FamilyShareSheet: UIViewControllerRepresentable {
-    let payload: FamilySharePayload
+/// Presents the system share sheet directly from the hosting controller,
+/// without nesting it in a SwiftUI sheet.
+struct FamilySharePresenter: UIViewControllerRepresentable {
+    @Binding var payload: FamilySharePayload?
+    let onFinish: () -> Void
 
-    func makeUIViewController(context: Context) -> UIActivityViewController {
+    func makeUIViewController(context: Context) -> SharePresenterController {
+        let controller = SharePresenterController()
+        controller.onFinish = onFinish
+        return controller
+    }
+
+    func updateUIViewController(_ controller: SharePresenterController, context: Context) {
+        controller.onFinish = onFinish
+        if let payload {
+            controller.presentIfNeeded(payload)
+        }
+    }
+}
+
+final class SharePresenterController: UIViewController {
+    var onFinish: (() -> Void)?
+    private var pendingPayload: FamilySharePayload?
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        presentPendingIfPossible()
+    }
+
+    func presentIfNeeded(_ payload: FamilySharePayload) {
+        pendingPayload = payload
+        presentPendingIfPossible()
+    }
+
+    private func presentPendingIfPossible() {
+        guard let payload = pendingPayload,
+              view.window != nil,
+              presentedViewController == nil else { return }
+        pendingPayload = nil
+
+        let controller = FamilyShareSheet.makeController(payload: payload) { [weak self] in
+            self?.onFinish?()
+        }
+        present(controller, animated: true)
+    }
+}
+
+enum FamilyShareSheet {
+    static func makeController(
+        payload: FamilySharePayload,
+        onFinish: @escaping () -> Void
+    ) -> UIActivityViewController {
         let controller = UIActivityViewController(
             activityItems: [FamilyShareItemSource(payload: payload)],
             applicationActivities: [
@@ -16,10 +62,11 @@ struct FamilyShareSheet: UIViewControllerRepresentable {
             ]
         )
         controller.excludedActivityTypes = [.copyToPasteboard]
+        controller.completionWithItemsHandler = { _, _, _, _ in
+            onFinish()
+        }
         return controller
     }
-
-    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 final class FamilyShareItemSource: NSObject, UIActivityItemSource {
@@ -53,7 +100,7 @@ final class FamilyShareItemSource: NSObject, UIActivityItemSource {
         _ activityViewController: UIActivityViewController
     ) -> LPLinkMetadata? {
         let metadata = LPLinkMetadata()
-        metadata.title = payload.familyName
+        metadata.title = "\(payload.familyName) · 族长 \(payload.leaderName)"
         metadata.originalURL = payload.familyURL
 
         if let avatar = payload.avatar {

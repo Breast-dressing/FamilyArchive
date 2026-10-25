@@ -333,6 +333,9 @@ struct RootView: View {
             || arguments.contains("-UIPreviewDateSheet")
             || arguments.contains("-UIPreviewPendingSheet") {
             showMusic([familyRoute])
+        } else if arguments.contains("-UIPreviewFeedSearch") {
+            router.selectedTab = .feed
+            accessoryState.isFeedSearchActive = true
         } else if arguments.contains("-UIPreviewSearchFocus") {
             router.selectedTab = .feed
             accessoryState.isFeedSearchActive = true

@@ -32,6 +32,7 @@ jobs:
             date_filter_sheet_ui.png
             pending_files_sheet_ui.png
             feed_tab_ui.png
+            feed_search_ui.png
             feed_search_focused_ui.png
             share_sheet_ui.png
             video_tab_ui.png

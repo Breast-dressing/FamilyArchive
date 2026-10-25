@@ -72,6 +72,8 @@ echo "==> Simulator: $UDID"
 
 xcrun simctl boot "$UDID" 2>/dev/null || true
 run_with_timeout 600 xcrun simctl bootstatus "$UDID" -b
+xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true 2>/dev/null || true
+xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowGestureKeyboardIntroduction -bool true 2>/dev/null || true
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 
@@ -120,7 +122,11 @@ shot family_pending_accessory_ui.png
 launch "Member detail" -UIPreviewMember
 shot member_detail_ui.png
 
-# Feed search field: in-place toggle with keyboard focus.
+# Feed search field: in-place style and keyboard focus.
+launch "Feed search field style" -UIPreviewFeedSearch
+sleep 3
+shot feed_search_ui.png
+
 launch "Feed search field" -UIPreviewSearchFocus
 sleep 4
 shot feed_search_focused_ui.png

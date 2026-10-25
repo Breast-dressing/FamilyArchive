@@ -68,9 +68,12 @@ struct FamilyDetailView: View {
         }
         .navigationTitle(family?.name ?? "家族")
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(item: $sharePayload) { payload in
-            FamilyShareSheet(payload: payload)
-        }
+        .background(
+            FamilySharePresenter(payload: $sharePayload) {
+                sharePayload = nil
+            }
+            .frame(width: 0, height: 0)
+        )
     }
 
     private func detailList(family: Family) -> some View {
