@@ -160,6 +160,10 @@ struct RootView: View {
             case .dateFilter:
                 DateFilterPopover()
                     .environment(dateFilterStore)
+                    .environment(\.locale, Locale(identifier: "zh_CN"))
+                    .presentationDetents([.height(380)])
+                    .presentationDragIndicator(.hidden)
+                    .presentationBackground(Color(uiColor: .systemBackground))
                     .navigationTransition(
                         .zoom(
                             sourceID: AccessoryTransition.dateFilter,
@@ -175,7 +179,7 @@ struct RootView: View {
                     )
                     .environment(pendingImports)
                     .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.hidden)
                     .presentationBackground(Color(uiColor: .systemBackground))
                     .navigationTransition(
                         .zoom(
@@ -231,22 +235,6 @@ struct RootView: View {
                 workingOverlay
             }
         }
-        #if DEBUG
-        .overlay(alignment: .top) {
-            if ProcessInfo.processInfo.arguments.contains("-UIPreviewDiagnostics") {
-                VStack(spacing: 2) {
-                    Text("sheet: \(activeSheet?.id ?? "nil")")
-                    Text("form: \(String(describing: accessoryState.musicForm))")
-                    Text("family: \(accessoryState.familyURL == nil ? "nil" : "set")")
-                }
-                .font(.caption2.monospaced())
-                .padding(6)
-                .background(.red, in: RoundedRectangle(cornerRadius: 8))
-                .foregroundStyle(.white)
-                .padding(.top, 60)
-            }
-        }
-        #endif
     }
 
     #if DEBUG
@@ -328,10 +316,6 @@ struct RootView: View {
             router.selectedTab = .music
             router.musicSection = .archive
             syncAccessoryWithNavigation()
-        }
-
-        if arguments.contains("-UIPreviewPendingBadge") {
-            accessoryState.pendingCount = 3
         }
 
         if arguments.contains("-UIPreviewDateSheet") {

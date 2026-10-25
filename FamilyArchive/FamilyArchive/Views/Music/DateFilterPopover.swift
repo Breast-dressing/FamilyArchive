@@ -53,8 +53,9 @@ struct DateFilterPopover: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
+
+            Spacer(minLength: 0)
         }
-        .presentationSizing(.fitted)
         .presentationBackground(Color(uiColor: .systemBackground))
     }
 }
