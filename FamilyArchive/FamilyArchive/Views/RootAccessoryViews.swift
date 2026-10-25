@@ -12,12 +12,12 @@ import SwiftUI
 struct FeedBottomAccessory: View {
     let state: RootAccessoryState
     let namespace: Namespace.ID
+    let onDateFilter: () -> Void
+    let onSearch: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
-            Button {
-                state.isDateFilterPresented = true
-            } label: {
+            Button(action: onDateFilter) {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("日期筛选")
@@ -40,9 +40,7 @@ struct FeedBottomAccessory: View {
                 .fill(Color(uiColor: .separator))
                 .frame(width: 1, height: 26)
 
-            Button {
-                state.isFeedSearchPresented = true
-            } label: {
+            Button(action: onSearch) {
                 Label("搜索", systemImage: "magnifyingglass")
                     .font(.subheadline.bold())
                     .frame(maxWidth: .infinity)
@@ -58,12 +56,12 @@ struct FeedBottomAccessory: View {
 struct FamilyBottomAccessory: View {
     let state: RootAccessoryState
     let namespace: Namespace.ID
+    let onDateFilter: () -> Void
+    let onPendingFiles: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            Button {
-                state.isDateFilterPresented = true
-            } label: {
+            Button(action: onDateFilter) {
                 Label {
                     VStack(alignment: .leading, spacing: 1) {
                         Text("日期筛选")
@@ -83,9 +81,7 @@ struct FamilyBottomAccessory: View {
             .matchedTransitionSource(id: AccessoryTransition.dateFilter, in: namespace)
 
             if state.pendingCount > 0 {
-                Button {
-                    state.isPendingFilesPresented = true
-                } label: {
+                Button(action: onPendingFiles) {
                     Label {
                         VStack(alignment: .leading, spacing: 1) {
                             Text("待保存文件")

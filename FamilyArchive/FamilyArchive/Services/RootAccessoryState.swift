@@ -37,10 +37,6 @@ final class RootAccessoryState {
     var videoSearchText = ""
     var musicSearchText = ""
 
-    var isDateFilterPresented = false
-    var isPendingFilesPresented = false
-    var isFeedSearchPresented = false
-
     /// Family page entry. Resets the member so returning from a member page
     /// restores the "日期筛选" form.
     func enterFamily(familyURL: String, dateLabel: String, pendingCount: Int) {
@@ -73,7 +69,5 @@ final class RootAccessoryState {
         familyURL = nil
         memberName = nil
         pendingCount = 0
-        isDateFilterPresented = false
-        isPendingFilesPresented = false
     }
 }

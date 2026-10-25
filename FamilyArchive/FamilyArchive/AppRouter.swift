@@ -65,6 +65,4 @@ final class AppRouter {
     /// Routes pushed on the Music tab's navigation stack. When non-empty the
     /// user is on a family or member page, which changes the "＋" behaviour.
     var musicPath: [MusicRoute] = []
-
-    var plusRoute: PlusRoute?
 }

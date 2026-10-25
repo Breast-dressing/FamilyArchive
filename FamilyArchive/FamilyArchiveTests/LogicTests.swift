@@ -282,16 +282,12 @@ final class RootAccessoryStateTests: XCTestCase {
         XCTAssertEqual(state.musicForm, .family)
         XCTAssertEqual(state.pendingCount, 3)
 
-        state.isDateFilterPresented = true
-        state.isPendingFilesPresented = true
         state.leaveFamily()
 
         XCTAssertEqual(state.musicForm, .search)
         XCTAssertNil(state.familyURL)
         XCTAssertNil(state.memberName)
         XCTAssertEqual(state.pendingCount, 0)
-        XCTAssertFalse(state.isDateFilterPresented)
-        XCTAssertFalse(state.isPendingFilesPresented)
     }
 
     func testEnteringMemberKeepsFamilyFormAndDateLabel() {

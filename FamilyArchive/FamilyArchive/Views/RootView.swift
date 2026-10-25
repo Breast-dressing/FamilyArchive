@@ -14,6 +14,34 @@ import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+/// One sheet source for the whole root. Multiple `.sheet` modifiers on the
+/// same TabView can swallow each other, especially from the bottom accessory.
+enum RootSheet: Identifiable {
+    case dateFilter
+    case pendingFiles
+    case feedSearch
+    case plus(PlusRoute)
+    case feedComposer
+    case videoComposer([URL])
+
+    var id: String {
+        switch self {
+        case .dateFilter:
+            return "dateFilter"
+        case .pendingFiles:
+            return "pendingFiles"
+        case .feedSearch:
+            return "feedSearch"
+        case .plus(let route):
+            return "plus-\(route.id)"
+        case .feedComposer:
+            return "feedComposer"
+        case .videoComposer:
+            return "videoComposer"
+        }
+    }
+}
+
 struct AppMessage: Identifiable {
     let id = UUID()
     let title: String
@@ -33,9 +61,7 @@ struct RootView: View {
     @State private var isImportingHAR = false
     @State private var message: AppMessage?
 
-    @State private var isFeedComposerPresented = false
-    @State private var isVideoComposerPresented = false
-    @State private var videoComposerFiles: [URL] = []
+    @State private var activeSheet: RootSheet?
 
     private enum FilePickerPurpose {
         case har(familyURL: String)
@@ -73,7 +99,9 @@ struct RootView: View {
             case .feed:
                 FeedBottomAccessory(
                     state: accessoryState,
-                    namespace: accessoryNamespace
+                    namespace: accessoryNamespace,
+                    onDateFilter: { activeSheet = .dateFilter },
+                    onSearch: { activeSheet = .feedSearch }
                 )
 
             case .video:
@@ -92,7 +120,9 @@ struct RootView: View {
                 case .family:
                     FamilyBottomAccessory(
                         state: accessoryState,
-                        namespace: accessoryNamespace
+                        namespace: accessoryNamespace,
+                        onDateFilter: { activeSheet = .dateFilter },
+                        onPendingFiles: { activeSheet = .pendingFiles }
                     )
                 }
 
@@ -125,45 +155,48 @@ struct RootView: View {
                 )
             }
         }
-        .sheet(item: $router.plusRoute) { route in
-            PlusActionsSheet(route: route) { action in
-                handleArchiveAction(action)
-            }
-        }
-        .sheet(isPresented: $isFeedComposerPresented) {
-            FeedComposerView()
-        }
-        .sheet(isPresented: $isVideoComposerPresented) {
-            VideoComposerView(files: videoComposerFiles)
-        }
-        .sheet(isPresented: $accessory.isDateFilterPresented) {
-            DateFilterPopover()
-                .navigationTransition(
-                    .zoom(
-                        sourceID: AccessoryTransition.dateFilter,
-                        in: accessoryNamespace
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .dateFilter:
+                DateFilterPopover()
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccessoryTransition.dateFilter,
+                            in: accessoryNamespace
+                        )
                     )
-                )
-        }
-        .sheet(isPresented: $accessory.isPendingFilesPresented) {
-            if let familyURL = accessoryState.familyURL {
-                PendingFilesView(
-                    familyURL: familyURL,
-                    memberName: accessoryState.memberName
-                )
-                .presentationDetents([.medium, .large])
-                .presentationDragIndicator(.visible)
-                .presentationBackground(Color(uiColor: .systemBackground))
-                .navigationTransition(
-                    .zoom(
-                        sourceID: AccessoryTransition.pendingFiles,
-                        in: accessoryNamespace
+
+            case .pendingFiles:
+                if let familyURL = accessoryState.familyURL {
+                    PendingFilesView(
+                        familyURL: familyURL,
+                        memberName: accessoryState.memberName
                     )
-                )
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Color(uiColor: .systemBackground))
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccessoryTransition.pendingFiles,
+                            in: accessoryNamespace
+                        )
+                    )
+                }
+
+            case .feedSearch:
+                FeedSearchView(searchText: $accessory.feedSearchText)
+
+            case .plus(let route):
+                PlusActionsSheet(route: route) { action in
+                    handleArchiveAction(action)
+                }
+
+            case .feedComposer:
+                FeedComposerView()
+
+            case .videoComposer(let files):
+                VideoComposerView(files: files)
             }
-        }
-        .sheet(isPresented: $accessory.isFeedSearchPresented) {
-            FeedSearchView(searchText: $accessory.feedSearchText)
         }
         .fileImporter(
             isPresented: $isFilePickerPresented,
@@ -261,14 +294,14 @@ struct RootView: View {
         if arguments.contains("-UIPreviewDateSheet") {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.2))
-                accessoryState.isDateFilterPresented = true
+                activeSheet = .dateFilter
             }
         }
 
         if arguments.contains("-UIPreviewPendingSheet") {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.2))
-                accessoryState.isPendingFilesPresented = true
+                activeSheet = .pendingFiles
             }
         }
     }
@@ -328,17 +361,17 @@ struct RootView: View {
                 filePickerPurpose = .har(familyURL: familyURL)
                 isFilePickerPresented = true
             } else if router.musicSection == .archive {
-                router.plusRoute = .archiveActions
+                activeSheet = .plus(.archiveActions)
             } else {
-                router.plusRoute = .unavailable(pageName: "音乐")
+                activeSheet = .plus(.unavailable(pageName: "音乐"))
             }
         case .feed:
-            isFeedComposerPresented = true
+            activeSheet = .feedComposer
         case .video:
             filePickerPurpose = .video
             isFilePickerPresented = true
         case .more:
-            router.plusRoute = .unavailable(pageName: "更多")
+            activeSheet = .plus(.unavailable(pageName: "更多"))
         case .plus:
             break
         }
@@ -347,7 +380,7 @@ struct RootView: View {
     // MARK: - Archive actions
 
     private func handleArchiveAction(_ action: ArchiveAction) {
-        router.plusRoute = nil
+        activeSheet = nil
         guard action == .family else { return }
         Task { @MainActor in
             await addFamilyFromClipboard()
@@ -565,11 +598,11 @@ struct RootView: View {
         }
 
         guard !selection.accepted.isEmpty else { return }
-        videoComposerFiles = selection.accepted
+        let files = selection.accepted
         Task { @MainActor in
             // Let the file importer finish dismissing before presenting the sheet.
             try? await Task.sleep(for: .milliseconds(250))
-            isVideoComposerPresented = true
+            activeSheet = .videoComposer(files)
         }
     }
 
