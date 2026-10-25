@@ -120,6 +120,16 @@ shot family_pending_accessory_ui.png
 launch "Member detail" -UIPreviewMember
 shot member_detail_ui.png
 
+# Feed search field: in-place toggle with keyboard focus.
+launch "Feed search field" -UIPreviewSearchFocus
+sleep 4
+shot feed_search_focused_ui.png
+
+# System share sheet for the family share button.
+launch "Family share sheet" -UIPreviewFamily -UIPreviewShare
+sleep 5
+shot share_sheet_ui.png
+
 # App Store style date sheet: opaque adaptive background.
 launch "Date filter sheet" -UIPreviewDateSheet
 sleep 3
