@@ -1,0 +1,18 @@
+name: Dump SwiftUI API
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: xcode-27
+    steps:
+      - name: Dump reorder API
+        run: |
+          SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          echo "SDK: $SDK"
+          find "$SDK/System/Library/Frameworks/SwiftUI.framework" -name '*.swiftinterface' -print
+          grep -R -a -n "ReorderDifference\|reorderContainer" "$SDK/System/Library/Frameworks/SwiftUI.framework" | head -100
