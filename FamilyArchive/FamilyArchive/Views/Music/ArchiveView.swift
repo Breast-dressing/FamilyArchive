@@ -68,8 +68,7 @@ struct ArchiveView: View {
                     }
                     .padding(.horizontal, 16)
                     .reorderContainer(for: Family.self) { difference in
-                        difference.apply(to: &displayedFamilies)
-                        persistOrder()
+                        applyReorder(difference)
                     }
                 }
             }
@@ -103,6 +102,32 @@ struct ArchiveView: View {
         } message: {
             Text("确定要删除该家族吗？")
         }
+    }
+
+    private func applyReorder(
+        _ difference: ReorderDifference<
+            Family.ID,
+            ReorderableSingleCollectionIdentifier
+        >
+    ) {
+        let sources = Set(difference.sources)
+        let moving = displayedFamilies.filter { sources.contains($0.id) }
+        guard !moving.isEmpty else { return }
+
+        var remaining = displayedFamilies.filter { !sources.contains($0.id) }
+        switch difference.destination.position {
+        case .end:
+            remaining.append(contentsOf: moving)
+        case .before(let destinationID):
+            if let index = remaining.firstIndex(where: { $0.id == destinationID }) {
+                remaining.insert(contentsOf: moving, at: index)
+            } else {
+                remaining.append(contentsOf: moving)
+            }
+        }
+
+        displayedFamilies = remaining
+        persistOrder()
     }
 
     private func persistOrder() {
