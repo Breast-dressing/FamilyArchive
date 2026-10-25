@@ -173,7 +173,7 @@ struct RootView: View {
             case .dateFilter:
                 DateFilterPopover()
                     .environment(dateFilterStore)
-                    .presentationDetents([.medium])
+                    .presentationDetents([.height(380)])
                     .navigationTransition(
                         .zoom(
                             sourceID: AccessoryTransition.dateFilter,
