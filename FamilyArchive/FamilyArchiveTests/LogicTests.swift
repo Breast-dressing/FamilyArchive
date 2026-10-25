@@ -321,3 +321,37 @@ final class RootAccessoryStateTests: XCTestCase {
         XCTAssertEqual(state.dateLabel, "range")
     }
 }
+
+
+final class FamilySharePayloadTests: XCTestCase {
+    private func payload() -> FamilySharePayload {
+        FamilySharePayload(
+            familyName: "jaychou",
+            familyURL: URL(string: "https://i2.y.qq.com/?family_id=preview-1"),
+            leaderName: "Tong",
+            period: "2026年10月18日 至 2026年10月25日",
+            members: [
+                FamilyShareMember(id: "m1", name: "Tong", honor: 832840),
+                FamilyShareMember(id: "m2", name: "lollipop", honor: 680760)
+            ],
+            avatar: nil
+        )
+    }
+
+    func testCopyTextContainsPeriodLeaderAndEveryMember() {
+        let text = payload().copyText
+        XCTAssertTrue(text.contains("jaychou"))
+        XCTAssertTrue(text.contains("2026年10月18日 至 2026年10月25日"))
+        XCTAssertTrue(text.contains("族长：Tong"))
+        XCTAssertTrue(text.contains("Tong\t832,840"))
+        XCTAssertTrue(text.contains("lollipop\t680,760"))
+    }
+
+    @MainActor
+    func testHonorImageRendersAtExportWidth() {
+        let image = FamilyHonorImageRenderer.image(for: payload())
+        XCTAssertNotNil(image)
+        XCTAssertEqual(image?.scale, 3)
+        XCTAssertGreaterThan(image?.size.width ?? 0, 0)
+    }
+}

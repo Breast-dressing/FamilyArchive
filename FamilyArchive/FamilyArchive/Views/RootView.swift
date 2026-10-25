@@ -161,6 +161,16 @@ struct RootView: View {
                 EmptyView()
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if accessorySearchFocused {
+                SearchBottomAccessory(
+                    text: currentSearchText,
+                    prompt: "搜索",
+                    focus: $accessorySearchFocused,
+                    onSubmit: { accessorySearchFocused = false }
+                )
+            }
+        }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -374,6 +384,35 @@ struct RootView: View {
     #endif
 
     // MARK: - Tab selection
+
+    private var currentSearchText: Binding<String> {
+        Binding(
+            get: {
+                switch router.selectedTab {
+                case .feed:
+                    return accessoryState.feedSearchText
+                case .video:
+                    return accessoryState.videoSearchText
+                case .music:
+                    return accessoryState.musicSearchText
+                default:
+                    return ""
+                }
+            },
+            set: { value in
+                switch router.selectedTab {
+                case .feed:
+                    accessoryState.feedSearchText = value
+                case .video:
+                    accessoryState.videoSearchText = value
+                case .music:
+                    accessoryState.musicSearchText = value
+                default:
+                    break
+                }
+            }
+        )
+    }
 
     /// `更多` and the detached `＋` must not reserve an empty accessory bar.
     private var isAccessoryEnabled: Bool {
