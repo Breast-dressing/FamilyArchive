@@ -138,5 +138,30 @@ shot tour_family_ui.png
 sleep 4
 shot tour_archive_ui.png
 
+# Diagnostics: family without pending, sheet state badge, pending console.
+launch "Diagnostics: family without pending" -UIPreviewFamily
+sleep 3
+shot diag_family_plain_ui.png
+
+launch "Diagnostics: date sheet state" -UIPreviewDateSheet -UIPreviewDiagnostics
+sleep 3.5
+shot diag_date_sheet_ui.png
+
+echo "==> Diagnostics: pending sheet console"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+  -UIPreviewSeed -UIPreviewPendingSheet -UIPreviewDiagnostics \
+  > /tmp/pending-console.log 2>&1 &
+CONSOLE_PID=$!
+sleep 4
+shot diag_pending_sheet_ui.png
+sleep 1
+kill "$CONSOLE_PID" 2>/dev/null || true
+tail -80 /tmp/pending-console.log 2>/dev/null || true
+
+echo "==> Crash reports"
+find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 1 -name 'FamilyArchive*' -mmin -15 \
+  -print -exec tail -60 {} \; 2>/dev/null || true
+
 echo "==> Screenshots:"
 ls -lh "$ROOT"/*.png
