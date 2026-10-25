@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// App Store style, fully opaque date filter sheet. No liquid glass materials
-/// are used; the background is the adaptive `systemBackground` color.
+/// Native sheet content for the date filter. The close control is a real
+/// toolbar item (never a hand-positioned overlay), and the sheet background is
+/// the adaptive opaque `systemBackground` color.
 struct DateFilterPopover: View {
     @Environment(DateFilterStore.self) private var dateFilter
     @Environment(\.dismiss) private var dismiss
@@ -9,53 +10,40 @@ struct DateFilterPopover: View {
     var body: some View {
         @Bindable var filter = dateFilter
 
-        VStack(spacing: 0) {
-            AppStoreSheetHeader(title: "日期筛选") {
-                dismiss()
-            }
-
-            VStack(alignment: .leading, spacing: 14) {
-                VStack(spacing: 0) {
+        NavigationStack {
+            Form {
+                Section {
                     DatePicker(
                         "起始日期",
                         selection: $filter.startDate,
                         displayedComponents: .date
                     )
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-
-                    Divider()
-                        .padding(.leading, 16)
-
                     DatePicker(
                         "结束日期",
                         selection: $filter.endDate,
                         displayedComponents: .date
                     )
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                } header: {
+                    Text("选择日期")
+                } footer: {
+                    Text("筛选 \(dateFilter.label)，即按自然日筛选记录。")
                 }
-                .background(
-                    Color(uiColor: .secondarySystemBackground),
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                )
-
-                Text("筛选 \(dateFilter.label)，即按自然日筛选记录。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                Button("完成") {
-                    dismiss()
-                }
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 20)
-
-            Spacer(minLength: 0)
+            .scrollContentBackground(.hidden)
+            .navigationTitle("日期筛选")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("关闭")
+                }
+            }
         }
+        .environment(\.locale, Locale(identifier: "zh_CN"))
         .presentationBackground(Color(uiColor: .systemBackground))
     }
 }

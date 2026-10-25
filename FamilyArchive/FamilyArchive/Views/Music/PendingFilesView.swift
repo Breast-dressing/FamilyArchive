@@ -30,11 +30,7 @@ struct PendingFilesView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            AppStoreSheetHeader(title: "待保存文件") {
-                dismiss()
-            }
-
+        NavigationStack {
             Group {
                 if let pending {
                     List {
@@ -56,11 +52,22 @@ struct PendingFilesView: View {
                         systemImage: "tray",
                         description: Text("请先选择并解析记录文件。")
                     )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .navigationTitle("待保存文件")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel("关闭")
                 }
             }
         }
-        .background(Color(uiColor: .systemBackground))
+        .presentationBackground(Color(uiColor: .systemBackground))
         .alert("提示", isPresented: $showSummary) {
             Button(saveSucceeded ? "完成" : "好") {
                 if saveSucceeded {

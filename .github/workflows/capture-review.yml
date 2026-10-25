@@ -26,7 +26,8 @@ jobs:
           name: ui-review-screenshots
           path: |
             music_tab_ui.png
-            family_detail_ui.png
+            family_date_accessory_ui.png
+            family_pending_accessory_ui.png
             member_detail_ui.png
             date_filter_sheet_ui.png
             pending_files_sheet_ui.png

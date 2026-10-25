@@ -109,9 +109,12 @@ shot() {
 launch "Music root (search accessory)" -UIPreviewMusic
 shot music_tab_ui.png
 
-# Family detail: date filter + pending files accessory.
-launch "Family detail (date + pending accessory)" -UIPreviewFamily -UIPreviewPending
-shot family_detail_ui.png
+# Family detail: two mutually exclusive accessory forms.
+launch "Family detail (date accessory)" -UIPreviewFamily
+shot family_date_accessory_ui.png
+
+launch "Family detail (pending accessory)" -UIPreviewFamily -UIPreviewPending
+shot family_pending_accessory_ui.png
 
 # Member detail: date filter accessory must still be present.
 launch "Member detail" -UIPreviewMember

@@ -98,7 +98,7 @@ struct RootView: View {
             switch router.selectedTab {
             case .feed:
                 FeedBottomAccessory(
-                    state: accessoryState,
+                    dateLabel: accessoryState.dateLabel,
                     namespace: accessoryNamespace,
                     onDateFilter: { activeSheet = .dateFilter },
                     onSearch: { activeSheet = .feedSearch }
@@ -118,12 +118,25 @@ struct RootView: View {
                         prompt: "搜索音乐"
                     )
                 case .family:
-                    FamilyBottomAccessory(
-                        state: accessoryState,
-                        namespace: accessoryNamespace,
-                        onDateFilter: { activeSheet = .dateFilter },
-                        onPendingFiles: { activeSheet = .pendingFiles }
-                    )
+                    if accessoryState.pendingCount > 0 {
+                        PendingFilesAccessoryButton(
+                            count: accessoryState.pendingCount,
+                            namespace: accessoryNamespace,
+                            action: { activeSheet = .pendingFiles }
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 2)
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        DateFilterAccessoryButton(
+                            dateLabel: accessoryState.dateLabel,
+                            namespace: accessoryNamespace,
+                            action: { activeSheet = .dateFilter }
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
 
             case .more, .plus:
@@ -160,10 +173,7 @@ struct RootView: View {
             case .dateFilter:
                 DateFilterPopover()
                     .environment(dateFilterStore)
-                    .environment(\.locale, Locale(identifier: "zh_CN"))
-                    .presentationDetents([.height(380)])
-                    .presentationDragIndicator(.hidden)
-                    .presentationBackground(Color(uiColor: .systemBackground))
+                    .presentationDetents([.medium])
                     .navigationTransition(
                         .zoom(
                             sourceID: AccessoryTransition.dateFilter,
@@ -179,8 +189,6 @@ struct RootView: View {
                     )
                     .environment(pendingImports)
                     .presentationDetents([.medium, .large])
-                    .presentationDragIndicator(.hidden)
-                    .presentationBackground(Color(uiColor: .systemBackground))
                     .navigationTransition(
                         .zoom(
                             sourceID: AccessoryTransition.pendingFiles,
