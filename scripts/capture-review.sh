@@ -136,6 +136,16 @@ launch "Family share sheet" -UIPreviewFamily -UIPreviewShare
 sleep 5
 shot share_sheet_ui.png
 
+# Family honor image export produced by the custom "图片" action renderer.
+rm -f "$CONTAINER/Documents/family-honor-export.png"
+launch "Family honor image export" -UIPreviewFamily -UIPreviewShareImage
+for ((i = 0; i < 15; i++)); do
+  if [[ -f "$CONTAINER/Documents/family-honor-export.png" ]]; then break; fi
+  sleep 1
+done
+cp "$CONTAINER/Documents/family-honor-export.png" "$ROOT/family_honor_export.png"
+echo "    captured family_honor_export.png"
+
 # App Store style date sheet: opaque adaptive background.
 launch "Date filter sheet" -UIPreviewDateSheet
 sleep 3

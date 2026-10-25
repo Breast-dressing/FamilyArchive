@@ -125,6 +125,21 @@ struct FamilyDetailView: View {
                     sharePayload = makeSharePayload(family: family)
                 }
             }
+            if ProcessInfo.processInfo.arguments.contains("-UIPreviewShareImage") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1.2))
+                    let payload = makeSharePayload(family: family)
+                    guard let image = FamilyHonorImageRenderer.image(for: payload),
+                          let data = image.pngData(),
+                          let documents = FileManager.default.urls(
+                              for: .documentDirectory,
+                              in: .userDomainMask
+                          ).first else { return }
+                    try? data.write(
+                        to: documents.appendingPathComponent("family-honor-export.png")
+                    )
+                }
+            }
             #endif
         }
         .onChange(of: dateFilter.label) { _, _ in
