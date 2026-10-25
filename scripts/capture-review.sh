@@ -143,6 +143,22 @@ launch "Diagnostics: family without pending" -UIPreviewFamily
 sleep 3
 shot diag_family_plain_ui.png
 
+launch "Diagnostics: family static pending badge" -UIPreviewFamily -UIPreviewPendingBadge
+sleep 3
+shot diag_family_badge_ui.png
+
+echo "==> Diagnostics: family pending console"
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
+  -UIPreviewSeed -UIPreviewFamily -UIPreviewPending -UIPreviewDiagnostics \
+  > /tmp/family-pending-console.log 2>&1 &
+FAMILY_CONSOLE_PID=$!
+sleep 4
+shot diag_family_pending_console_ui.png
+sleep 1
+kill "$FAMILY_CONSOLE_PID" 2>/dev/null || true
+tail -80 /tmp/family-pending-console.log 2>/dev/null || true
+
 launch "Diagnostics: date sheet state" -UIPreviewDateSheet -UIPreviewDiagnostics
 sleep 3.5
 shot diag_date_sheet_ui.png

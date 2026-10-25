@@ -43,14 +43,14 @@ enum DateDisplay {
     }
 
     static func compactRangeLabel(start: Date, end: Date) -> String {
-        "\(monthDay(start)) 至 \(monthDay(end))"
+        "\(numericMonthDay(start)) – \(numericMonthDay(end))"
     }
 
-    static func monthDay(_ date: Date) -> String {
+    static func numericMonthDay(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.timeZone = .current
-        formatter.dateFormat = "M月d日"
+        formatter.dateFormat = "M/d"
         return formatter.string(from: date)
     }
 

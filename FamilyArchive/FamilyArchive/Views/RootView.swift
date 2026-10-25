@@ -159,6 +159,7 @@ struct RootView: View {
             switch sheet {
             case .dateFilter:
                 DateFilterPopover()
+                    .environment(dateFilterStore)
                     .navigationTransition(
                         .zoom(
                             sourceID: AccessoryTransition.dateFilter,
@@ -172,6 +173,7 @@ struct RootView: View {
                         familyURL: familyURL,
                         memberName: accessoryState.memberName
                     )
+                    .environment(pendingImports)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Color(uiColor: .systemBackground))
@@ -185,6 +187,7 @@ struct RootView: View {
 
             case .feedSearch:
                 FeedSearchView(searchText: $accessory.feedSearchText)
+                    .environment(accessoryState)
 
             case .plus(let route):
                 PlusActionsSheet(route: route) { action in
@@ -305,6 +308,10 @@ struct RootView: View {
             router.selectedTab = .music
             router.musicSection = .archive
             syncAccessoryWithNavigation()
+        }
+
+        if arguments.contains("-UIPreviewPendingBadge") {
+            accessoryState.pendingCount = 3
         }
 
         if arguments.contains("-UIPreviewDateSheet") {

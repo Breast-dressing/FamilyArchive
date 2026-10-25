@@ -37,6 +37,8 @@ jobs:
             tour_family_ui.png
             tour_archive_ui.png
             diag_family_plain_ui.png
+            diag_family_badge_ui.png
+            diag_family_pending_console_ui.png
             diag_date_sheet_ui.png
             diag_pending_sheet_ui.png
           if-no-files-found: warn

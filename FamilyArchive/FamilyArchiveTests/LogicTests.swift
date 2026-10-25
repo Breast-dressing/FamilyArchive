@@ -264,7 +264,7 @@ final class DateFilterStoreTests: XCTestCase {
         )!
         let store = DateFilterStore(referenceDate: reference)
         XCTAssertEqual(store.label, "2026年10月17日 至 2026年10月24日")
-        XCTAssertEqual(store.accessoryLabel, "10月17日 至 10月24日")
+        XCTAssertEqual(store.accessoryLabel, "10/17 – 10/24")
     }
 
     func testDayKeyUsesReferenceFormat() {
