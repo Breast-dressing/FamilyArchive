@@ -222,6 +222,9 @@ struct RootView: View {
             #endif
             accessoryState.dateLabel = dateFilterStore.accessoryLabel
             syncAccessoryWithNavigation()
+            #if DEBUG
+            writePreviewReadyFile()
+            #endif
         }
         .overlay {
             if isImportingHAR {
@@ -247,6 +250,23 @@ struct RootView: View {
     }
 
     #if DEBUG
+    /// Writes a readiness marker into the app's Documents directory. The
+    /// screenshot script deletes it before launch and polls for it, which
+    /// removes all fixed launch-delay races from the simulator review.
+    private func writePreviewReadyFile() {
+        guard ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("-UIPreview") }) else {
+            return
+        }
+        guard let documents = FileManager.default.urls(
+            for: .documentDirectory,
+            in: .userDomainMask
+        ).first else {
+            return
+        }
+        let marker = documents.appendingPathComponent("UIPreviewReady")
+        try? Data("ready".utf8).write(to: marker)
+    }
+
     /// Deterministic review routes. They drive the same router state as a real
     /// push/pop, so the accessory lifecycle is exercised without UI probing.
     private func applyUIPreviewRoute() {
@@ -282,11 +302,11 @@ struct RootView: View {
         if arguments.contains("-UIPreviewTour") {
             showMusic([familyRoute, memberRoute])
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(4))
+                try? await Task.sleep(for: .seconds(5))
                 guard router.musicPath.count == 2 else { return }
                 router.musicPath = [familyRoute]
 
-                try? await Task.sleep(for: .seconds(4))
+                try? await Task.sleep(for: .seconds(5))
                 guard router.musicPath.count == 1 else { return }
                 router.musicPath = []
             }

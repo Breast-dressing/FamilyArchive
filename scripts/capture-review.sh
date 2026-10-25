@@ -77,11 +77,26 @@ xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 
 rm -f "$ROOT"/*.png
 
+CONTAINER="$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)"
+READY_FILE="$CONTAINER/Documents/UIPreviewReady"
+
 launch() {
   local label="$1"
   shift
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+  rm -f "$READY_FILE"
   xcrun simctl launch "$UDID" "$BUNDLE_ID" -UIPreviewSeed "$@" >/dev/null
+  local i
+  for ((i = 0; i < 40; i++)); do
+    if [[ -f "$READY_FILE" ]]; then
+      break
+    fi
+    sleep 1
+  done
+  if [[ ! -f "$READY_FILE" ]]; then
+    echo "warning: readiness marker not written for $label" >&2
+  fi
+  sleep 2
   echo "==> $label"
 }
 
@@ -92,92 +107,44 @@ shot() {
 
 # Music root: search accessory, archive section.
 launch "Music root (search accessory)" -UIPreviewMusic
-sleep 3
 shot music_tab_ui.png
 
 # Family detail: date filter + pending files accessory.
 launch "Family detail (date + pending accessory)" -UIPreviewFamily -UIPreviewPending
-sleep 3
 shot family_detail_ui.png
 
 # Member detail: date filter accessory must still be present.
 launch "Member detail" -UIPreviewMember
-sleep 3
 shot member_detail_ui.png
 
 # App Store style date sheet: opaque adaptive background.
 launch "Date filter sheet" -UIPreviewDateSheet
-sleep 3.5
+sleep 3
 shot date_filter_sheet_ui.png
 
 # App Store style pending files sheet: opaque adaptive background.
 launch "Pending files sheet" -UIPreviewPendingSheet
-sleep 3.5
+sleep 3
 shot pending_files_sheet_ui.png
 
 # Per-tab accessory content.
 launch "Feed accessory" -UIPreviewFeed
-sleep 3
 shot feed_tab_ui.png
 
 launch "Video accessory" -UIPreviewVideo
-sleep 3
 shot video_tab_ui.png
 
 launch "More (no accessory)" -UIPreviewMore
-sleep 3
 shot more_tab_ui.png
 
 # Lifecycle tour: member -> family -> archive, driven by the real NavigationStack
-# path. Timers inside the app run at 4s and 8s after launch.
+# path. Timers inside the app run at 5s and 10s after appearing.
 launch "Accessory lifecycle tour" -UIPreviewTour
-sleep 2.5
 shot tour_member_ui.png
-sleep 3.5
+sleep 5
 shot tour_family_ui.png
-sleep 4
+sleep 5
 shot tour_archive_ui.png
-
-# Diagnostics: family without pending, sheet state badge, pending console.
-launch "Diagnostics: family without pending" -UIPreviewFamily
-sleep 3
-shot diag_family_plain_ui.png
-
-launch "Diagnostics: family static pending badge" -UIPreviewFamily -UIPreviewPendingBadge
-sleep 3
-shot diag_family_badge_ui.png
-
-echo "==> Diagnostics: family pending console"
-xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
-  -UIPreviewSeed -UIPreviewFamily -UIPreviewPending -UIPreviewDiagnostics \
-  > /tmp/family-pending-console.log 2>&1 &
-FAMILY_CONSOLE_PID=$!
-sleep 4
-shot diag_family_pending_console_ui.png
-sleep 1
-kill "$FAMILY_CONSOLE_PID" 2>/dev/null || true
-tail -80 /tmp/family-pending-console.log 2>/dev/null || true
-
-launch "Diagnostics: date sheet state" -UIPreviewDateSheet -UIPreviewDiagnostics
-sleep 3.5
-shot diag_date_sheet_ui.png
-
-echo "==> Diagnostics: pending sheet console"
-xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" \
-  -UIPreviewSeed -UIPreviewPendingSheet -UIPreviewDiagnostics \
-  > /tmp/pending-console.log 2>&1 &
-CONSOLE_PID=$!
-sleep 4
-shot diag_pending_sheet_ui.png
-sleep 1
-kill "$CONSOLE_PID" 2>/dev/null || true
-tail -80 /tmp/pending-console.log 2>/dev/null || true
-
-echo "==> Crash reports"
-find "$HOME/Library/Logs/DiagnosticReports" -maxdepth 1 -name 'FamilyArchive*' -mmin -15 \
-  -print -exec tail -60 {} \; 2>/dev/null || true
 
 echo "==> Screenshots:"
 ls -lh "$ROOT"/*.png
