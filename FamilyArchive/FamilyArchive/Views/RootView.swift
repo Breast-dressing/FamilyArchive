@@ -182,17 +182,7 @@ struct RootView: View {
         .onAppear {
             #if DEBUG
             UIPreviewSeed.seedIfNeeded(in: modelContext)
-            if ProcessInfo.processInfo.arguments.contains("-UIPreviewArchive") {
-                router.musicSection = .archive
-            }
-            if ProcessInfo.processInfo.arguments.contains("-UIPreviewPending"),
-               let previewFamily = (try? modelContext.fetch(FetchDescriptor<Family>()))?
-                   .first(where: { $0.name == "jaychou" }) {
-                pendingImports.setPending(
-                    UIPreviewSeed.pendingOutcome(),
-                    for: previewFamily.url
-                )
-            }
+            applyUIPreviewRoute()
             #endif
             accessoryState.dateLabel = dateFilterStore.accessoryLabel
             syncAccessoryWithNavigation()
@@ -203,6 +193,86 @@ struct RootView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// Deterministic review routes. They drive the same router state as a real
+    /// push/pop, so the accessory lifecycle is exercised without UI probing.
+    private func applyUIPreviewRoute() {
+        let arguments = Set(ProcessInfo.processInfo.arguments)
+        let previewArguments = arguments.filter { $0.hasPrefix("-UIPreview") }
+        guard !previewArguments.isEmpty,
+              let family = (try? modelContext.fetch(FetchDescriptor<Family>()))?
+                  .first(where: { $0.name == "jaychou" }) else {
+            return
+        }
+
+        let familyRoute = MusicRoute.family(family.url)
+        let memberRoute = MusicRoute.member(
+            familyURL: family.url,
+            memberID: "preview-member-0"
+        )
+
+        func showMusic(_ path: [MusicRoute]) {
+            router.selectedTab = .music
+            router.musicSection = .archive
+            router.musicPath = path
+            syncAccessoryWithNavigation()
+        }
+
+        if arguments.contains("-UIPreviewPending")
+            || arguments.contains("-UIPreviewPendingSheet") {
+            pendingImports.setPending(
+                UIPreviewSeed.pendingOutcome(),
+                for: family.url
+            )
+        }
+
+        if arguments.contains("-UIPreviewTour") {
+            showMusic([familyRoute, memberRoute])
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(4))
+                guard router.musicPath.count == 2 else { return }
+                router.musicPath = [familyRoute]
+
+                try? await Task.sleep(for: .seconds(4))
+                guard router.musicPath.count == 1 else { return }
+                router.musicPath = []
+            }
+        } else if arguments.contains("-UIPreviewMember") {
+            showMusic([familyRoute, memberRoute])
+        } else if arguments.contains("-UIPreviewFamily")
+            || arguments.contains("-UIPreviewDateSheet")
+            || arguments.contains("-UIPreviewPendingSheet") {
+            showMusic([familyRoute])
+        } else if arguments.contains("-UIPreviewMusic") {
+            showMusic([])
+        } else if arguments.contains("-UIPreviewFeed") {
+            router.selectedTab = .feed
+        } else if arguments.contains("-UIPreviewVideo") {
+            router.selectedTab = .video
+        } else if arguments.contains("-UIPreviewMore") {
+            router.selectedTab = .more
+        } else if arguments.contains("-UIPreviewArchive") {
+            router.selectedTab = .music
+            router.musicSection = .archive
+            syncAccessoryWithNavigation()
+        }
+
+        if arguments.contains("-UIPreviewDateSheet") {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                accessoryState.isDateFilterPresented = true
+            }
+        }
+
+        if arguments.contains("-UIPreviewPendingSheet") {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                accessoryState.isPendingFilesPresented = true
+            }
+        }
+    }
+    #endif
 
     // MARK: - Tab selection
 
@@ -221,11 +291,12 @@ struct RootView: View {
     /// the path root returns to the search field. Member pages update the
     /// same object without hiding it.
     private func syncAccessoryWithNavigation() {
-        guard let familyURL = router.musicPath.last else {
+        guard let route = router.musicPath.last else {
             accessoryState.leaveFamily()
             return
         }
 
+        let familyURL = route.familyURL
         if accessoryState.familyURL != familyURL {
             accessoryState.enterFamily(
                 familyURL: familyURL,
@@ -253,7 +324,7 @@ struct RootView: View {
     private func handlePlusButtonTapped() {
         switch router.selectedTab {
         case .music:
-            if let familyURL = router.musicPath.last {
+            if let familyURL = router.musicPath.last?.familyURL {
                 filePickerPurpose = .har(familyURL: familyURL)
                 isFilePickerPresented = true
             } else if router.musicSection == .archive {

@@ -42,7 +42,7 @@ struct ArchiveView: View {
                 } else {
                     LazyVGrid(columns: columns, alignment: .leading, spacing: 10) {
                         ForEach(displayedFamilies) { family in
-                            NavigationLink(value: family.url) {
+                            NavigationLink(value: MusicRoute.family(family.url)) {
                                 FamilyCard(family: family)
                             }
                             .buttonStyle(.plain)

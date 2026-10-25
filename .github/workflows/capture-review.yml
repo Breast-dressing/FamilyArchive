@@ -28,13 +28,13 @@ jobs:
             music_tab_ui.png
             family_detail_ui.png
             member_detail_ui.png
-            family_return_ui.png
             date_filter_sheet_ui.png
             pending_files_sheet_ui.png
-            archive_return_ui.png
             feed_tab_ui.png
             video_tab_ui.png
             more_tab_ui.png
-            music_back_ui.png
+            tour_member_ui.png
+            tour_family_ui.png
+            tour_archive_ui.png
           if-no-files-found: warn
           retention-days: 14

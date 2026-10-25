@@ -41,8 +41,13 @@ struct MusicRootView: View {
             .sheet(isPresented: $isAccountsPresented) {
                 AccountsView(scope: .music)
             }
-            .navigationDestination(for: String.self) { familyURL in
-                FamilyDetailView(familyURL: familyURL)
+            .navigationDestination(for: MusicRoute.self) { route in
+                switch route {
+                case .family(let familyURL):
+                    FamilyDetailView(familyURL: familyURL)
+                case .member(let familyURL, let memberID):
+                    MemberDetailView(familyURL: familyURL, memberID: memberID)
+                }
             }
         }
     }

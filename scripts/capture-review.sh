@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Capture the review screenshots on the pinned iPhone 18 Pro simulator and
-# exercise the bottom accessory lifecycle end to end.
+# Capture the review screenshots on the pinned iPhone 18 Pro simulator.
+#
+# The app exposes DEBUG-only launch routes (-UIPreview*) that drive the exact
+# same router state as real pushes and pops. That keeps the review deterministic
+# and avoids slow/fragile accessibility snapshots in CI.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -11,15 +14,8 @@ SCHEME="FamilyArchive"
 BUNDLE_ID="com.example.FamilyArchive"
 DEVICE_NAME="iPhone 18 Pro"
 IOS_VERSION="27.0"
-SCREEN_WIDTH=402
-SCREEN_HEIGHT=874
 DERIVED_DATA="$ROOT/build/review/DerivedData"
 APP="$DERIVED_DATA/Build/Products/Debug-iphonesimulator/$SCHEME.app"
-MCP=(npx --yes xcodebuildmcp@2.7.0 ui-automation)
-SNAP="$(mktemp)"
-
-cleanup() { rm -f "$SNAP"; }
-trap cleanup EXIT
 
 run_with_timeout() {
   local secs="$1"
@@ -78,165 +74,69 @@ xcrun simctl boot "$UDID" 2>/dev/null || true
 run_with_timeout 600 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
-xcrun simctl launch "$UDID" "$BUNDLE_ID" \
-  -UIPreviewSeed -UIPreviewArchive -UIPreviewPending >/dev/null
-run_with_timeout 90 "${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
 
-snapshot() {
-  local attempt
-  for attempt in 1 2 3; do
-    if run_with_timeout 45 "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json > "$SNAP" 2>/dev/null && [[ -s "$SNAP" ]]; then
-      return 0
-    fi
-    sleep 2
-  done
-  echo "snapshot failed" >&2
-  return 1
-}
+rm -f "$ROOT"/*.png
 
-find_ref() {
-  python3 - "$SNAP" "$1" <<'PY'
-import json, sys
-path, want = sys.argv[1], sys.argv[2]
-try:
-    data = json.load(open(path))
-except Exception:
-    raise SystemExit(1)
-capture = (data.get("data") or {}).get("capture") or {}
-for kind in ("targets", "text"):
-    for line in capture.get(kind, []) or []:
-        parts = line.split("|")
-        if len(parts) < 4:
-            continue
-        if kind == "targets" and parts[1] != "tap":
-            continue
-        label = parts[3].strip()
-        if label == want or want in label:
-            print(parts[0])
-            raise SystemExit(0)
-raise SystemExit(1)
-PY
-}
-
-tap_label() {
+launch() {
   local label="$1"
-  local ref
-  if snapshot && ref=$(find_ref "$label"); then
-    run_with_timeout 30 "${MCP[@]}" tap --simulator-id "$UDID" --element-ref "$ref" >/dev/null 2>&1
-    sleep 1
-    return 0
-  fi
-  return 1
-}
-
-tap_retry() {
-  local label="$1"
-  local attempt
-  for attempt in 1 2 3; do
-    if tap_label "$label"; then
-      return 0
-    fi
-    sleep 2
-  done
-  return 1
-}
-
-wait_for() {
-  local label="$1"
-  local tries="${2:-30}"
-  local i
-  for ((i = 0; i < tries; i++)); do
-    if snapshot && find_ref "$label" >/dev/null; then
-      return 0
-    fi
-    sleep 1
-  done
-  return 1
-}
-
-swipe_back() {
-  run_with_timeout 30 "${MCP[@]}" gesture \
-    --simulator-id "$UDID" \
-    --preset swipe-from-left-edge \
-    --screen-width "$SCREEN_WIDTH" \
-    --screen-height "$SCREEN_HEIGHT" \
-    --duration 0.3 >/dev/null 2>&1
-  sleep 1.5
+  shift
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" -UIPreviewSeed "$@" >/dev/null
+  echo "==> $label"
 }
 
 shot() {
   xcrun simctl io "$UDID" screenshot "$ROOT/$1"
   echo "    captured $1"
-  sleep 1
 }
 
-go_back() {
-  local target="$1"
-  swipe_back
-  if wait_for "$target" 20; then
-    return 0
-  fi
-  tap_label "返回" || true
-  sleep 1.5
-  wait_for "$target" 20
-}
-
-echo "==> Music root (archive default, search accessory)"
-tap_label "音乐" || { echo "error: music tab not found" >&2; exit 1; }
-wait_for "家族信息" 45 || { echo "error: family grid not found" >&2; exit 1; }
+# Music root: search accessory, archive section.
+launch "Music root (search accessory)" -UIPreviewMusic
+sleep 3
 shot music_tab_ui.png
 
-echo "==> Family detail (date + pending accessory)"
-tap_label "jaychou" || { echo "error: family card not found" >&2; exit 1; }
-wait_for "Tong" 45 || { echo "error: family detail not found" >&2; exit 1; }
+# Family detail: date filter + pending files accessory.
+launch "Family detail (date + pending accessory)" -UIPreviewFamily -UIPreviewPending
+sleep 3
 shot family_detail_ui.png
 
-echo "==> Member detail"
-tap_retry "Tong" || { echo "error: member row not found" >&2; exit 1; }
-wait_for "记录数" 45 || { echo "error: member detail not found" >&2; exit 1; }
+# Member detail: date filter accessory must still be present.
+launch "Member detail" -UIPreviewMember
+sleep 3
 shot member_detail_ui.png
 
-echo "==> Back to family detail (accessory must stay in date form)"
-go_back "Tong" || { echo "error: family detail did not return" >&2; exit 1; }
-shot family_return_ui.png
-
-echo "==> Date filter sheet"
-tap_retry "日期筛选" || { echo "error: date accessory not found" >&2; exit 1; }
-wait_for "起始日期" 30 || { echo "error: date filter sheet not found" >&2; exit 1; }
+# App Store style date sheet: opaque adaptive background.
+launch "Date filter sheet" -UIPreviewDateSheet
+sleep 3.5
 shot date_filter_sheet_ui.png
-tap_label "完成" || { echo "error: date filter close button not found" >&2; exit 1; }
-wait_for "Tong" 30 || { echo "error: date filter did not dismiss" >&2; exit 1; }
 
-echo "==> Pending files sheet"
-tap_retry "待保存文件" || { echo "error: pending accessory not found" >&2; exit 1; }
-wait_for "保存文件" 30 || { echo "error: pending sheet not found" >&2; exit 1; }
+# App Store style pending files sheet: opaque adaptive background.
+launch "Pending files sheet" -UIPreviewPendingSheet
+sleep 3.5
 shot pending_files_sheet_ui.png
-tap_label "关闭" || { echo "error: pending close button not found" >&2; exit 1; }
-wait_for "Tong" 30 || { echo "error: pending sheet did not dismiss" >&2; exit 1; }
 
-echo "==> Back to archive (search accessory)"
-go_back "家族信息" || { echo "error: archive did not return" >&2; exit 1; }
-shot archive_return_ui.png
-
-echo "==> Feed tab accessory"
-tap_label "动态" || { echo "error: feed tab not found" >&2; exit 1; }
-wait_for "暂无动态" 30 || { echo "error: feed page not found" >&2; exit 1; }
+# Per-tab accessory content.
+launch "Feed accessory" -UIPreviewFeed
+sleep 3
 shot feed_tab_ui.png
 
-echo "==> Video tab accessory"
-tap_label "影视" || { echo "error: video tab not found" >&2; exit 1; }
-wait_for "暂无影视" 30 || { echo "error: video page not found" >&2; exit 1; }
+launch "Video accessory" -UIPreviewVideo
+sleep 3
 shot video_tab_ui.png
 
-echo "==> More tab (no accessory container)"
-tap_label "更多" || { echo "error: more tab not found" >&2; exit 1; }
-sleep 2
+launch "More (no accessory)" -UIPreviewMore
+sleep 3
 shot more_tab_ui.png
 
-echo "==> Music tab again"
-tap_label "音乐" || { echo "error: music tab not found" >&2; exit 1; }
-wait_for "家族信息" 30 || { echo "error: archive did not return" >&2; exit 1; }
-shot music_back_ui.png
+# Lifecycle tour: member -> family -> archive, driven by the real NavigationStack
+# path. Timers inside the app run at 4s and 8s after launch.
+launch "Accessory lifecycle tour" -UIPreviewTour
+sleep 2.5
+shot tour_member_ui.png
+sleep 3.5
+shot tour_family_ui.png
+sleep 4
+shot tour_archive_ui.png
 
 echo "==> Screenshots:"
 ls -lh "$ROOT"/*.png

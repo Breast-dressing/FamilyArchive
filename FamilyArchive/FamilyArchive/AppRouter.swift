@@ -26,6 +26,22 @@ enum MusicSection: String, Hashable, CaseIterable {
     case archive = "Archive"
 }
 
+/// Value-based Music navigation stack. Member pages are real path values so
+/// RootView can keep the bottom accessory in sync for every push and pop.
+enum MusicRoute: Hashable {
+    case family(String)
+    case member(familyURL: String, memberID: String)
+
+    var familyURL: String {
+        switch self {
+        case .family(let familyURL):
+            return familyURL
+        case .member(let familyURL, _):
+            return familyURL
+        }
+    }
+}
+
 /// What the detached "＋" tab should present for the current page.
 enum PlusRoute: Identifiable, Equatable {
     case archiveActions
@@ -46,9 +62,9 @@ final class AppRouter {
     var selectedTab: RootTab = .feed
     var musicSection: MusicSection = .music
 
-    /// Family URLs pushed on the Music tab's navigation stack. When non-empty the
-    /// user is on a family detail page, which changes the "＋" behaviour.
-    var musicPath: [String] = []
+    /// Routes pushed on the Music tab's navigation stack. When non-empty the
+    /// user is on a family or member page, which changes the "＋" behaviour.
+    var musicPath: [MusicRoute] = []
 
     var plusRoute: PlusRoute?
 }

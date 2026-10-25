@@ -81,9 +81,12 @@ struct FamilyDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(members) { member in
-                        NavigationLink {
-                            MemberDetailView(familyURL: familyURL, memberID: member.memberID)
-                        } label: {
+                        NavigationLink(
+                            value: MusicRoute.member(
+                                familyURL: familyURL,
+                                memberID: member.memberID
+                            )
+                        ) {
                             memberRow(member)
                         }
                     }
