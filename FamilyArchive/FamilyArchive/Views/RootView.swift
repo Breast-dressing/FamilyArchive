@@ -116,7 +116,7 @@ struct RootView: View {
         .onChange(of: router.musicPath) { _, _ in
             syncAccessoryWithNavigation()
         }
-        .onChange(of: dateFilterStore.label) { _, newLabel in
+        .onChange(of: dateFilterStore.accessoryLabel) { _, newLabel in
             accessoryState.dateLabel = newLabel
             if accessoryState.musicForm == .family {
                 accessoryState.updateFamily(
@@ -194,7 +194,7 @@ struct RootView: View {
                 )
             }
             #endif
-            accessoryState.dateLabel = dateFilterStore.label
+            accessoryState.dateLabel = dateFilterStore.accessoryLabel
             syncAccessoryWithNavigation()
         }
         .overlay {
@@ -229,7 +229,7 @@ struct RootView: View {
         if accessoryState.familyURL != familyURL {
             accessoryState.enterFamily(
                 familyURL: familyURL,
-                dateLabel: dateFilterStore.label,
+                dateLabel: dateFilterStore.accessoryLabel,
                 pendingCount: pendingImports.pending(for: familyURL)?.outcome.records.count ?? 0
             )
         }

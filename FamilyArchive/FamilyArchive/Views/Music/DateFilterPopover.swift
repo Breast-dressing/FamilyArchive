@@ -44,6 +44,12 @@ struct DateFilterPopover: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button("完成") {
+                    dismiss()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 20)

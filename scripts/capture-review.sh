@@ -83,7 +83,15 @@ xcrun simctl launch "$UDID" "$BUNDLE_ID" \
 run_with_timeout 90 "${MCP[@]}" wait-for-ui --simulator-id "$UDID" --predicate settled >/dev/null 2>&1 || true
 
 snapshot() {
-  run_with_timeout 60 "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json > "$SNAP" 2>/dev/null
+  local attempt
+  for attempt in 1 2 3; do
+    if run_with_timeout 45 "${MCP[@]}" snapshot-ui --simulator-id "$UDID" --output json > "$SNAP" 2>/dev/null && [[ -s "$SNAP" ]]; then
+      return 0
+    fi
+    sleep 2
+  done
+  echo "snapshot failed" >&2
+  return 1
 }
 
 find_ref() {
@@ -121,6 +129,18 @@ tap_label() {
   return 1
 }
 
+tap_retry() {
+  local label="$1"
+  local attempt
+  for attempt in 1 2 3; do
+    if tap_label "$label"; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 wait_for() {
   local label="$1"
   local tries="${2:-30}"
@@ -147,6 +167,18 @@ swipe_back() {
 shot() {
   xcrun simctl io "$UDID" screenshot "$ROOT/$1"
   echo "    captured $1"
+  sleep 1
+}
+
+go_back() {
+  local target="$1"
+  swipe_back
+  if wait_for "$target" 20; then
+    return 0
+  fi
+  tap_label "返回" || true
+  sleep 1.5
+  wait_for "$target" 20
 }
 
 echo "==> Music root (archive default, search accessory)"
@@ -160,32 +192,30 @@ wait_for "Tong" 45 || { echo "error: family detail not found" >&2; exit 1; }
 shot family_detail_ui.png
 
 echo "==> Member detail"
-tap_label "Tong" || { echo "error: member row not found" >&2; exit 1; }
-wait_for "总荣誉" 45 || { echo "error: member detail not found" >&2; exit 1; }
+tap_retry "Tong" || { echo "error: member row not found" >&2; exit 1; }
+wait_for "记录数" 45 || { echo "error: member detail not found" >&2; exit 1; }
 shot member_detail_ui.png
 
 echo "==> Back to family detail (accessory must stay in date form)"
-swipe_back
-wait_for "Tong" 45 || { echo "error: family detail did not return" >&2; exit 1; }
+go_back "Tong" || { echo "error: family detail did not return" >&2; exit 1; }
 shot family_return_ui.png
 
 echo "==> Date filter sheet"
-tap_label "日期筛选" || { echo "error: date accessory not found" >&2; exit 1; }
+tap_retry "日期筛选" || { echo "error: date accessory not found" >&2; exit 1; }
 wait_for "起始日期" 30 || { echo "error: date filter sheet not found" >&2; exit 1; }
 shot date_filter_sheet_ui.png
-tap_label "关闭" || { echo "error: date filter close button not found" >&2; exit 1; }
+tap_label "完成" || { echo "error: date filter close button not found" >&2; exit 1; }
 wait_for "Tong" 30 || { echo "error: date filter did not dismiss" >&2; exit 1; }
 
 echo "==> Pending files sheet"
-tap_label "待保存文件" || { echo "error: pending accessory not found" >&2; exit 1; }
+tap_retry "待保存文件" || { echo "error: pending accessory not found" >&2; exit 1; }
 wait_for "保存文件" 30 || { echo "error: pending sheet not found" >&2; exit 1; }
 shot pending_files_sheet_ui.png
 tap_label "关闭" || { echo "error: pending close button not found" >&2; exit 1; }
 wait_for "Tong" 30 || { echo "error: pending sheet did not dismiss" >&2; exit 1; }
 
 echo "==> Back to archive (search accessory)"
-swipe_back
-wait_for "家族信息" 45 || { echo "error: archive did not return" >&2; exit 1; }
+go_back "家族信息" || { echo "error: archive did not return" >&2; exit 1; }
 shot archive_return_ui.png
 
 echo "==> Feed tab accessory"

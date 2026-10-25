@@ -229,7 +229,7 @@ struct FamilyDetailView: View {
     private func updateAccessory() {
         accessoryState.enterFamily(
             familyURL: familyURL,
-            dateLabel: dateFilter.label,
+            dateLabel: dateFilter.accessoryLabel,
             pendingCount: pending?.outcome.records.count ?? 0
         )
     }

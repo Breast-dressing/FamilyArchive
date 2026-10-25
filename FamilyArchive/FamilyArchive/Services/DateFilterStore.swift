@@ -21,6 +21,12 @@ final class DateFilterStore {
     var label: String {
         DateDisplay.rangeLabel(start: startDate, end: endDate)
     }
+
+    /// Shorter range used by the bottom accessory, where horizontal space is
+    /// shared with the pending files button.
+    var accessoryLabel: String {
+        DateDisplay.compactRangeLabel(start: startDate, end: endDate)
+    }
 }
 
 enum DateDisplay {
@@ -34,6 +40,18 @@ enum DateDisplay {
 
     static func rangeLabel(start: Date, end: Date) -> String {
         "\(day(start)) 至 \(day(end))"
+    }
+
+    static func compactRangeLabel(start: Date, end: Date) -> String {
+        "\(monthDay(start)) 至 \(monthDay(end))"
+    }
+
+    static func monthDay(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = .current
+        formatter.dateFormat = "M月d日"
+        return formatter.string(from: date)
     }
 
     static func dayKey(from time: String) -> String {
