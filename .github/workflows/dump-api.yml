@@ -13,6 +13,5 @@ jobs:
       - name: Dump reorder API
         run: |
           SDK="$(xcrun --sdk iphonesimulator --show-sdk-path)"
-          echo "SDK: $SDK"
-          find "$SDK/System/Library/Frameworks/SwiftUI.framework" -name '*.swiftinterface' -print
-          grep -R -a -n "ReorderDifference\|reorderContainer" "$SDK/System/Library/Frameworks/SwiftUI.framework" | head -100
+          IFACE="$SDK/System/Library/Frameworks/SwiftUI.framework/Modules/SwiftUI.swiftmodule/arm64-apple-ios-simulator.swiftinterface"
+          sed -n '12460,12540p' "$IFACE"
