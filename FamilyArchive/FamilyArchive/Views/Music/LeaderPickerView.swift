@@ -60,6 +60,7 @@ struct LeaderPickerView: View {
                     }
                 }
             }
+            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .navigationTitle("添加族长")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

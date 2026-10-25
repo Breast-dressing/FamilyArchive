@@ -34,6 +34,7 @@ final class RootAccessoryState {
     var pendingCount = 0
 
     var feedSearchText = ""
+    var isFeedSearchActive = false
     var videoSearchText = ""
     var musicSearchText = ""
 

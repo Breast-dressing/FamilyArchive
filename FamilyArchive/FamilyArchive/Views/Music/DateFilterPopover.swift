@@ -30,6 +30,7 @@ struct DateFilterPopover: View {
                 }
             }
             .scrollContentBackground(.hidden)
+            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .navigationTitle("日期筛选")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -44,6 +45,6 @@ struct DateFilterPopover: View {
             }
         }
         .environment(\.locale, Locale(identifier: "zh_CN"))
-        .presentationBackground(Color(uiColor: .systemBackground))
+        .presentationBackground(Color(uiColor: .systemGroupedBackground))
     }
 }

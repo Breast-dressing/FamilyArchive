@@ -110,7 +110,7 @@ struct MemberDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .contentMargins(.bottom, 76, for: .scrollContent)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .onAppear {
             updateAccessory(member: member)
         }
@@ -136,25 +136,10 @@ struct MemberDetailView: View {
                         .font(.title3.bold())
                         .lineLimit(1)
 
-                    if !member.medalLevel.isEmpty || !member.nameplate.isEmpty {
-                        HStack(spacing: 6) {
-                            if !member.medalLevel.isEmpty {
-                                Text(member.medalLevel)
-                                    .font(.caption.bold())
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Color(uiColor: .tertiarySystemFill),
-                                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    )
-                            }
-                            if !member.nameplate.isEmpty {
-                                Text(member.nameplate)
-                                    .font(.caption.bold())
-                                    .foregroundStyle(Color(uiColor: .systemBrown))
-                            }
-                        }
-                    }
+                    MemberBadgeRow(
+                        medalLevel: member.medalLevel,
+                        nameplate: member.nameplate
+                    )
 
                     Text(familyName)
                         .font(.caption)
@@ -239,6 +224,7 @@ struct DailyRecordsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .navigationTitle(date)
         .navigationBarTitleDisplayMode(.inline)
     }

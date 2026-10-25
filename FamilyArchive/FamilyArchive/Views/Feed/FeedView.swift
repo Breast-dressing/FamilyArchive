@@ -60,7 +60,7 @@ struct FeedView: View {
                     masonry
                 }
             }
-            .contentMargins(.bottom, 76, for: .scrollContent)
+            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {

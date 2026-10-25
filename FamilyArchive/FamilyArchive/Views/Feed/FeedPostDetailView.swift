@@ -39,6 +39,7 @@ struct FeedPostDetailView: View {
             }
             .padding(16)
         }
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("动态详情")
         .navigationBarTitleDisplayMode(.inline)

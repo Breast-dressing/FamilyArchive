@@ -42,6 +42,7 @@ struct AvatarHistoryView: View {
                 }
             }
         }
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .navigationTitle("更改头像")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

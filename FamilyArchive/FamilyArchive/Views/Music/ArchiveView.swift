@@ -1,7 +1,6 @@
 import SwiftData
 import SwiftUI
 import UIKit
-import UniformTypeIdentifiers
 
 struct ArchiveView: View {
     @Environment(\.modelContext) private var modelContext
@@ -13,7 +12,6 @@ struct ArchiveView: View {
     private var families: [Family]
 
     @State private var displayedFamilies: [Family] = []
-    @State private var draggedURL: String?
     @State private var leaderFamily: Family?
     @State private var avatarFamily: Family?
     @State private var deleteFamily: Family?
@@ -66,27 +64,18 @@ struct ArchiveView: View {
                                     Label("删除家族", systemImage: "trash")
                                 }
                             }
-                            .onDrag {
-                                draggedURL = family.url
-                                return NSItemProvider(object: family.url as NSString)
-                            }
-                            .onDrop(
-                                of: [.text],
-                                delegate: FamilyDropDelegate(
-                                    target: family,
-                                    families: $displayedFamilies,
-                                    draggedURL: $draggedURL,
-                                    persist: persistOrder
-                                )
-                            )
                         }
                     }
                     .padding(.horizontal, 16)
+                    .reorderContainer(for: Family.self) { difference in
+                        difference.apply(to: &displayedFamilies)
+                        persistOrder()
+                    }
                 }
             }
             .padding(.vertical, 8)
         }
-        .contentMargins(.bottom, 76, for: .scrollContent)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .background(Color(uiColor: .systemGroupedBackground))
         .onAppear {
             displayedFamilies = families
@@ -143,40 +132,6 @@ struct ArchiveView: View {
 
         deleteFamily = nil
         displayedFamilies = families
-    }
-}
-
-private struct FamilyDropDelegate: DropDelegate {
-    let target: Family
-    @Binding var families: [Family]
-    @Binding var draggedURL: String?
-    let persist: () -> Void
-
-    func dropEntered(info: DropInfo) {
-        guard let draggedURL,
-              let from = families.firstIndex(where: { $0.url == draggedURL }),
-              let to = families.firstIndex(where: { $0.url == target.url }),
-              from != to else { return }
-
-        var updated = families
-        updated.move(
-            fromOffsets: IndexSet(integer: from),
-            toOffset: to > from ? to + 1 : to
-        )
-        withAnimation(.snappy(duration: 0.3)) {
-            families = updated
-        }
-        persist()
-    }
-
-    func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
-    }
-
-    func performDrop(info: DropInfo) -> Bool {
-        draggedURL = nil
-        persist()
-        return true
     }
 }
 

@@ -46,6 +46,7 @@ struct PendingFilesView: View {
                     }
                     .listStyle(.insetGrouped)
                     .scrollContentBackground(.hidden)
+                    .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
                 } else {
                     ContentUnavailableView(
                         "暂无待保存文件",

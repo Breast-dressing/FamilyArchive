@@ -57,6 +57,7 @@ struct PlusActionsSheet: View {
                     )
                 }
             }
+            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .navigationTitle("添加")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

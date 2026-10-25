@@ -14,6 +14,9 @@ struct FamilyDetailView: View {
     @Query private var allMembers: [FamilyMember]
     @Query private var allRecords: [HonorRecord]
 
+    @State private var sharePayload: FamilySharePayload?
+    @State private var shareAvatar: UIImage?
+
     private var family: Family? {
         families.first { $0.url == familyURL }
     }
@@ -65,6 +68,9 @@ struct FamilyDetailView: View {
         }
         .navigationTitle(family?.name ?? "家族")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $sharePayload) { payload in
+            FamilyShareSheet(payload: payload)
+        }
     }
 
     private func detailList(family: Family) -> some View {
@@ -96,24 +102,36 @@ struct FamilyDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .contentMargins(.bottom, 76, for: .scrollContent)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                ShareLink(item: familyURL) {
+                Button {
+                    sharePayload = makeSharePayload(family: family)
+                } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .accessibilityLabel("分享家族")
             }
-
         }
         .onAppear {
             updateAccessory()
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-UIPreviewShare") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1.2))
+                    sharePayload = makeSharePayload(family: family)
+                }
+            }
+            #endif
         }
         .onChange(of: dateFilter.label) { _, _ in
             updateAccessory()
         }
         .onChange(of: pending?.id) { _, _ in
             updateAccessory()
+        }
+        .task(id: family.avatarURL) {
+            await loadShareAvatar(family.avatarURL)
         }
     }
 
@@ -199,25 +217,10 @@ struct FamilyDetailView: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                if !member.medalLevel.isEmpty || !member.nameplate.isEmpty {
-                    HStack(spacing: 6) {
-                        if !member.medalLevel.isEmpty {
-                            Text(member.medalLevel)
-                                .font(.caption2.bold())
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 1)
-                                .background(
-                                    Color(uiColor: .tertiarySystemFill),
-                                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                )
-                        }
-                        if !member.nameplate.isEmpty {
-                            Text(member.nameplate)
-                                .font(.caption2.bold())
-                                .foregroundStyle(Color(uiColor: .systemBrown))
-                        }
-                    }
-                }
+                MemberBadgeRow(
+                    medalLevel: member.medalLevel,
+                    nameplate: member.nameplate
+                )
 
                 Text("\(displayHonor(member))荣誉值")
                     .font(.caption.bold())
@@ -227,6 +230,39 @@ struct FamilyDetailView: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 2)
+    }
+
+    private var leaderName: String {
+        guard let family else { return "暂无族长" }
+        return members.first { $0.memberID == family.leaderMemberID }?.name ?? "暂无族长"
+    }
+
+    private func makeSharePayload(family: Family) -> FamilySharePayload {
+        FamilySharePayload(
+            familyName: family.name.isEmpty ? "家族" : family.name,
+            familyURL: URL(string: familyURL),
+            leaderName: leaderName,
+            period: dateFilter.label,
+            members: members.map {
+                FamilyShareMember(
+                    id: $0.memberID,
+                    name: $0.name,
+                    honor: displayHonor($0)
+                )
+            },
+            avatar: shareAvatar
+        )
+    }
+
+    private func loadShareAvatar(_ urlString: String) async {
+        guard !urlString.isEmpty,
+              let url = URL(string: urlString),
+              let (data, _) = try? await URLSession.shared.data(from: url),
+              let image = UIImage(data: data) else {
+            shareAvatar = nil
+            return
+        }
+        shareAvatar = image
     }
 
     private func updateAccessory() {

@@ -22,7 +22,7 @@ struct DateFilterAccessoryButton: View {
                 Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(.primary)
-                    .padding(.all, 10)
+                    .frame(width: 24, height: 24)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("日期筛选")
@@ -53,7 +53,7 @@ struct PendingFilesAccessoryButton: View {
                 Image(systemName: "tray.and.arrow.down")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(.primary)
-                    .padding(.all, 10)
+                    .frame(width: 24, height: 24)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("待保存文件")
@@ -95,14 +95,14 @@ struct FeedBottomAccessory: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(.primary)
-                    .padding(.all, 10)
+                    .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("搜索")
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 2)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
     }
 }
@@ -110,34 +110,35 @@ struct FeedBottomAccessory: View {
 struct SearchBottomAccessory: View {
     @Binding var text: String
     let prompt: String
+    var focus: FocusState<Bool>.Binding
+    var onSubmit: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(.primary)
+                .frame(width: 24, height: 24)
 
             TextField(prompt, text: $text)
                 .textFieldStyle(.plain)
+                .font(.body)
                 .submitLabel(.search)
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
+                .focused(focus)
+                .onSubmit(onSubmit)
 
-            if !text.isEmpty {
-                Button {
-                    text = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("清除搜索")
-            }
+            Image(systemName: "mic")
+                .font(.system(size: 19, weight: .regular))
+                .foregroundStyle(.primary)
+                .frame(width: 24, height: 24)
+                .accessibilityHidden(true)
         }
-        .font(.subheadline)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
         .padding(.horizontal, 16)
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
     }
 }

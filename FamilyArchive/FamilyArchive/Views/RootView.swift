@@ -19,7 +19,6 @@ import UniformTypeIdentifiers
 enum RootSheet: Identifiable {
     case dateFilter
     case pendingFiles
-    case feedSearch
     case plus(PlusRoute)
     case feedComposer
     case videoComposer([URL])
@@ -30,8 +29,6 @@ enum RootSheet: Identifiable {
             return "dateFilter"
         case .pendingFiles:
             return "pendingFiles"
-        case .feedSearch:
-            return "feedSearch"
         case .plus(let route):
             return "plus-\(route.id)"
         case .feedComposer:
@@ -62,6 +59,7 @@ struct RootView: View {
     @State private var message: AppMessage?
 
     @State private var activeSheet: RootSheet?
+    @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
         case har(familyURL: String)
@@ -97,17 +95,35 @@ struct RootView: View {
         .tabViewBottomAccessory(isEnabled: isAccessoryEnabled) {
             switch router.selectedTab {
             case .feed:
-                FeedBottomAccessory(
-                    dateLabel: accessoryState.dateLabel,
-                    namespace: accessoryNamespace,
-                    onDateFilter: { activeSheet = .dateFilter },
-                    onSearch: { activeSheet = .feedSearch }
-                )
+                if accessoryState.isFeedSearchActive {
+                    SearchBottomAccessory(
+                        text: $accessory.feedSearchText,
+                        prompt: "搜索",
+                        focus: $accessorySearchFocused,
+                        onSubmit: { accessorySearchFocused = false }
+                    )
+                } else {
+                    FeedBottomAccessory(
+                        dateLabel: accessoryState.dateLabel,
+                        namespace: accessoryNamespace,
+                        onDateFilter: { activeSheet = .dateFilter },
+                        onSearch: {
+                            withAnimation(.snappy) {
+                                accessoryState.isFeedSearchActive = true
+                            }
+                            DispatchQueue.main.async {
+                                accessorySearchFocused = true
+                            }
+                        }
+                    )
+                }
 
             case .video:
                 SearchBottomAccessory(
                     text: $accessory.videoSearchText,
-                    prompt: "搜索影视"
+                    prompt: "搜索",
+                    focus: $accessorySearchFocused,
+                    onSubmit: { accessorySearchFocused = false }
                 )
 
             case .music:
@@ -115,7 +131,9 @@ struct RootView: View {
                 case .search:
                     SearchBottomAccessory(
                         text: $accessory.musicSearchText,
-                        prompt: "搜索音乐"
+                        prompt: "搜索",
+                        focus: $accessorySearchFocused,
+                        onSubmit: { accessorySearchFocused = false }
                     )
                 case .family:
                     if accessoryState.pendingCount > 0 {
@@ -125,7 +143,7 @@ struct RootView: View {
                             action: { activeSheet = .pendingFiles }
                         )
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity)
                     } else {
                         DateFilterAccessoryButton(
@@ -134,7 +152,7 @@ struct RootView: View {
                             action: { activeSheet = .dateFilter }
                         )
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 12)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
@@ -148,13 +166,20 @@ struct RootView: View {
         .environment(dateFilterStore)
         .environment(accessoryState)
         .environment(\.locale, Locale(identifier: "zh_CN"))
-        .onChange(of: router.selectedTab) { previousTab, newTab in
-            guard newTab == .plus else { return }
-            router.selectedTab = previousTab
-            handlePlusButtonTapped()
-        }
-        .onChange(of: router.selectedTab) { _, _ in
+        .onChange(of: router.selectedTab) { _, newTab in
             syncAccessoryWithNavigation()
+            accessorySearchFocused = false
+            if newTab != .feed {
+                accessoryState.isFeedSearchActive = false
+                accessoryState.feedSearchText = ""
+            }
+        }
+        .onChange(of: accessorySearchFocused) { _, isFocused in
+            guard !isFocused, accessoryState.isFeedSearchActive else { return }
+            withAnimation(.snappy) {
+                accessoryState.isFeedSearchActive = false
+            }
+            accessoryState.feedSearchText = ""
         }
         .onChange(of: router.musicPath) { _, _ in
             syncAccessoryWithNavigation()
@@ -196,10 +221,6 @@ struct RootView: View {
                         )
                     )
                 }
-
-            case .feedSearch:
-                FeedSearchView(searchText: $accessory.feedSearchText)
-                    .environment(accessoryState)
 
             case .plus(let route):
                 PlusActionsSheet(route: route) { action in
@@ -312,6 +333,13 @@ struct RootView: View {
             || arguments.contains("-UIPreviewDateSheet")
             || arguments.contains("-UIPreviewPendingSheet") {
             showMusic([familyRoute])
+        } else if arguments.contains("-UIPreviewSearchFocus") {
+            router.selectedTab = .feed
+            accessoryState.isFeedSearchActive = true
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                accessorySearchFocused = true
+            }
         } else if arguments.contains("-UIPreviewMusic") {
             showMusic([])
         } else if arguments.contains("-UIPreviewFeed") {
@@ -378,13 +406,17 @@ struct RootView: View {
         Binding(
             get: { router.selectedTab },
             set: { newValue in
-                if newValue == .plus {
-                    Task { @MainActor in
-                        handlePlusButtonTapped()
+                guard newValue != .plus else {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    let currentTab = router.selectedTab
+                    withTransaction(transaction) {
+                        router.selectedTab = currentTab
                     }
-                } else {
-                    router.selectedTab = newValue
+                    handlePlusButtonTapped()
+                    return
                 }
+                router.selectedTab = newValue
             }
         )
     }
