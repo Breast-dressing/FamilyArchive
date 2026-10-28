@@ -70,14 +70,29 @@ struct RootView: View {
         TabView(selection: $router.selectedTab) {
             Tab("动态", systemImage: "square.stack", value: RootTab.feed) {
                 FeedView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if !isBottomBarHidden {
+                            bottomBar
+                        }
+                    }
             }
 
             Tab("影视", systemImage: "play.rectangle", value: RootTab.video) {
                 VideoView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if !isBottomBarHidden {
+                            bottomBar
+                        }
+                    }
             }
 
             Tab("音乐", systemImage: "music.note", value: RootTab.music) {
                 MusicRootView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if !isBottomBarHidden {
+                            bottomBar
+                        }
+                    }
             }
 
             Tab("更多", systemImage: "ellipsis", value: RootTab.more) {
@@ -85,40 +100,6 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !isBottomBarHidden {
-                BottomToolbar(
-                    tab: router.selectedTab,
-                    dateLabel: dateFilterStore.accessoryLabel,
-                    namespace: accessoryNamespace,
-                    searchText: currentSearchText,
-                    isSearchFieldActive: router.selectedTab == .feed
-                        && accessoryState.isFeedSearchActive,
-                    focus: $accessorySearchFocused,
-                    onSearchTap: {
-                        guard router.selectedTab == .feed else {
-                            accessorySearchFocused = true
-                            return
-                        }
-                        withAnimation(.snappy) {
-                            accessoryState.isFeedSearchActive = true
-                        }
-                        DispatchQueue.main.async {
-                            accessorySearchFocused = true
-                        }
-                    },
-                    onSearchSubmit: {
-                        accessorySearchFocused = false
-                    },
-                    onDateTap: {
-                        activeSheet = .dateFilter
-                    },
-                    onPlusTap: {
-                        handlePlusButtonTapped()
-                    }
-                )
-            }
-        }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -358,6 +339,40 @@ struct RootView: View {
                 default:
                     break
                 }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var bottomBar: some View {
+        BottomToolbar(
+            tab: router.selectedTab,
+            dateLabel: dateFilterStore.accessoryLabel,
+            namespace: accessoryNamespace,
+            searchText: currentSearchText,
+            isSearchFieldActive: router.selectedTab == .feed
+                && accessoryState.isFeedSearchActive,
+            focus: $accessorySearchFocused,
+            onSearchTap: {
+                guard router.selectedTab == .feed else {
+                    accessorySearchFocused = true
+                    return
+                }
+                withAnimation(.snappy) {
+                    accessoryState.isFeedSearchActive = true
+                }
+                DispatchQueue.main.async {
+                    accessorySearchFocused = true
+                }
+            },
+            onSearchSubmit: {
+                accessorySearchFocused = false
+            },
+            onDateTap: {
+                activeSheet = .dateFilter
+            },
+            onPlusTap: {
+                handlePlusButtonTapped()
             }
         )
     }
