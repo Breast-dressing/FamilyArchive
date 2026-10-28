@@ -27,7 +27,7 @@ struct BottomToolbar: View {
                 searchField
             }
 
-            if tab == .feed {
+            if tab == .feed, !isSearchFieldActive {
                 iconButton(
                     systemImage: "magnifyingglass",
                     label: "搜索",
