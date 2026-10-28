@@ -59,11 +59,12 @@ enum LyricCardService {
             if url.contains("_webcgikey=GetCardInfoByIDs"),
                url.contains("musics.fcg") {
                 var requestIDs: [String] = []
-                if let postText = NodePortSupport.string(
+                let postText = NodePortSupport.string(
                     NodePortSupport.dictionary(request["postData"])["text"]
-                ),
-                let postData = postText.data(using: .utf8),
-                let payload = try? JSONSerialization.jsonObject(with: postData) as? [String: Any] {
+                )
+                if let postData = postText.data(using: .utf8),
+                   let object = try? JSONSerialization.jsonObject(with: postData),
+                   let payload = object as? [String: Any] {
                     let requestZero = NodePortSupport.dictionary(payload["req_0"])
                     let param = NodePortSupport.dictionary(requestZero["param"])
                     requestIDs = (param["IDs"] as? [String])
@@ -75,7 +76,8 @@ enum LyricCardService {
                 }
 
                 if let responseData = text.data(using: .utf8),
-                   let responseJSON = try? JSONSerialization.jsonObject(with: responseData) as? [String: Any] {
+                   let object = try? JSONSerialization.jsonObject(with: responseData),
+                   let responseJSON = object as? [String: Any] {
                     let requestZero = NodePortSupport.dictionary(responseJSON["req_0"])
                     extractSerials(
                         from: requestZero["data"],
