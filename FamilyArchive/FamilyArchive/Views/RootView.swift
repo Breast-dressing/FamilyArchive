@@ -67,9 +67,7 @@ struct RootView: View {
     }
 
     var body: some View {
-        @Bindable var accessory = accessoryState
-
-        TabView(selection: tabSelection) {
+        TabView(selection: $router.selectedTab) {
             Tab("动态", systemImage: "square.stack", value: RootTab.feed) {
                 FeedView()
             }
@@ -85,89 +83,39 @@ struct RootView: View {
             Tab("更多", systemImage: "ellipsis", value: RootTab.more) {
                 MoreView()
             }
-
-            // Detached tab item: never selected, never a page.
-            Tab("＋", systemImage: "plus", value: RootTab.plus, role: .prominent) {
-                EmptyView()
-            }
         }
         .tint(.blue)
-        .tabViewBottomAccessory(isEnabled: isAccessoryEnabled) {
-            switch router.selectedTab {
-            case .feed:
-                if accessoryState.isFeedSearchActive {
-                    SearchBottomAccessory(
-                        text: $accessory.feedSearchText,
-                        prompt: "搜索",
-                        focus: $accessorySearchFocused,
-                        onSubmit: { accessorySearchFocused = false }
-                    )
-                } else {
-                    FeedBottomAccessory(
-                        dateLabel: accessoryState.dateLabel,
-                        namespace: accessoryNamespace,
-                        onDateFilter: { activeSheet = .dateFilter },
-                        onSearch: {
-                            withAnimation(.snappy) {
-                                accessoryState.isFeedSearchActive = true
-                            }
-                            DispatchQueue.main.async {
-                                accessorySearchFocused = true
-                            }
-                        }
-                    )
-                }
-
-            case .video:
-                SearchBottomAccessory(
-                    text: $accessory.videoSearchText,
-                    prompt: "搜索",
-                    focus: $accessorySearchFocused,
-                    onSubmit: { accessorySearchFocused = false }
-                )
-
-            case .music:
-                switch accessoryState.musicForm {
-                case .search:
-                    SearchBottomAccessory(
-                        text: $accessory.musicSearchText,
-                        prompt: "搜索",
-                        focus: $accessorySearchFocused,
-                        onSubmit: { accessorySearchFocused = false }
-                    )
-                case .family:
-                    if accessoryState.pendingCount > 0 {
-                        PendingFilesAccessoryButton(
-                            count: accessoryState.pendingCount,
-                            namespace: accessoryNamespace,
-                            action: { activeSheet = .pendingFiles }
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        DateFilterAccessoryButton(
-                            dateLabel: accessoryState.dateLabel,
-                            namespace: accessoryNamespace,
-                            action: { activeSheet = .dateFilter }
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-
-            case .more, .plus:
-                EmptyView()
-            }
-        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if accessorySearchFocused {
-                SearchBottomAccessory(
-                    text: currentSearchText,
-                    prompt: "搜索",
+            if !isBottomBarHidden {
+                BottomToolbar(
+                    tab: router.selectedTab,
+                    dateLabel: dateFilterStore.accessoryLabel,
+                    namespace: accessoryNamespace,
+                    searchText: currentSearchText,
+                    isSearchFieldActive: router.selectedTab == .feed
+                        && accessoryState.isFeedSearchActive,
                     focus: $accessorySearchFocused,
-                    onSubmit: { accessorySearchFocused = false }
+                    onSearchTap: {
+                        guard router.selectedTab == .feed else {
+                            accessorySearchFocused = true
+                            return
+                        }
+                        withAnimation(.snappy) {
+                            accessoryState.isFeedSearchActive = true
+                        }
+                        DispatchQueue.main.async {
+                            accessorySearchFocused = true
+                        }
+                    },
+                    onSearchSubmit: {
+                        accessorySearchFocused = false
+                    },
+                    onDateTap: {
+                        activeSheet = .dateFilter
+                    },
+                    onPlusTap: {
+                        handlePlusButtonTapped()
+                    }
                 )
             }
         }
@@ -177,8 +125,8 @@ struct RootView: View {
         .environment(accessoryState)
         .environment(\.locale, Locale(identifier: "zh_CN"))
         .onChange(of: router.selectedTab) { _, newTab in
-            syncAccessoryWithNavigation()
             accessorySearchFocused = false
+            router.isFeedDetailActive = false
             if newTab != .feed {
                 accessoryState.isFeedSearchActive = false
                 accessoryState.feedSearchText = ""
@@ -190,18 +138,6 @@ struct RootView: View {
                 accessoryState.isFeedSearchActive = false
             }
             accessoryState.feedSearchText = ""
-        }
-        .onChange(of: router.musicPath) { _, _ in
-            syncAccessoryWithNavigation()
-        }
-        .onChange(of: dateFilterStore.accessoryLabel) { _, newLabel in
-            accessoryState.dateLabel = newLabel
-            if accessoryState.musicForm == .family {
-                accessoryState.updateFamily(
-                    dateLabel: newLabel,
-                    pendingCount: accessoryState.pendingCount
-                )
-            }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -262,10 +198,6 @@ struct RootView: View {
             #if DEBUG
             UIPreviewSeed.seedIfNeeded(in: modelContext)
             applyUIPreviewRoute()
-            #endif
-            accessoryState.dateLabel = dateFilterStore.accessoryLabel
-            syncAccessoryWithNavigation()
-            #if DEBUG
             writePreviewReadyFile()
             #endif
         }
@@ -277,9 +209,6 @@ struct RootView: View {
     }
 
     #if DEBUG
-    /// Writes a readiness marker into the app's Documents directory. The
-    /// screenshot script deletes it before launch and polls for it, which
-    /// removes all fixed launch-delay races from the simulator review.
     private func writePreviewReadyFile() {
         guard ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("-UIPreview") }) else {
             return
@@ -294,8 +223,6 @@ struct RootView: View {
         try? Data("ready".utf8).write(to: marker)
     }
 
-    /// Deterministic review routes. They drive the same router state as a real
-    /// push/pop, so the accessory lifecycle is exercised without UI probing.
     private func applyUIPreviewRoute() {
         let arguments = Set(ProcessInfo.processInfo.arguments)
         let previewArguments = arguments.filter { $0.hasPrefix("-UIPreview") }
@@ -315,7 +242,6 @@ struct RootView: View {
             router.selectedTab = .music
             router.musicSection = .archive
             router.musicPath = path
-            syncAccessoryWithNavigation()
         }
 
         if arguments.contains("-UIPreviewPending")
@@ -340,9 +266,16 @@ struct RootView: View {
         } else if arguments.contains("-UIPreviewMember") {
             showMusic([familyRoute, memberRoute])
         } else if arguments.contains("-UIPreviewFamily")
-            || arguments.contains("-UIPreviewDateSheet")
             || arguments.contains("-UIPreviewPendingSheet") {
             showMusic([familyRoute])
+        } else if arguments.contains("-UIPreviewFans") {
+            showMusic([.fans])
+        } else if arguments.contains("-UIPreviewMedals") {
+            showMusic([.medals])
+        } else if arguments.contains("-UIPreviewCards") {
+            showMusic([.cards])
+        } else if arguments.contains("-UIPreviewDateSheet") {
+            showMusic([])
         } else if arguments.contains("-UIPreviewFeedSearch") {
             router.selectedTab = .feed
             accessoryState.isFeedSearchActive = true
@@ -364,13 +297,28 @@ struct RootView: View {
         } else if arguments.contains("-UIPreviewArchive") {
             router.selectedTab = .music
             router.musicSection = .archive
-            syncAccessoryWithNavigation()
         }
 
         if arguments.contains("-UIPreviewDateSheet") {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.2))
                 activeSheet = .dateFilter
+            }
+        }
+
+        if arguments.contains("-UIPreviewFeedPlus") {
+            router.selectedTab = .feed
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                activeSheet = .feedComposer
+            }
+        }
+
+        if arguments.contains("-UIPreviewMusicPlus") {
+            showMusic([])
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                activeSheet = .plus(.archiveActions)
             }
         }
 
@@ -414,62 +362,23 @@ struct RootView: View {
         )
     }
 
-    /// `更多` and the detached `＋` must not reserve an empty accessory bar.
-    private var isAccessoryEnabled: Bool {
+    private var isBottomBarHidden: Bool {
         switch router.selectedTab {
-        case .feed, .video, .music:
+        case .more:
             return true
-        case .more, .plus:
+        case .music:
+            return !router.musicPath.isEmpty
+        case .feed:
+            return router.isFeedDetailActive
+        case .video:
             return false
         }
-    }
-
-    /// RootView is the single owner of the accessory lifecycle. Pushing a
-    /// family value into the Music path shows the date form; popping back to
-    /// the path root returns to the search field. Member pages update the
-    /// same object without hiding it.
-    private func syncAccessoryWithNavigation() {
-        guard let route = router.musicPath.last else {
-            accessoryState.leaveFamily()
-            return
-        }
-
-        let familyURL = route.familyURL
-        if accessoryState.familyURL != familyURL {
-            accessoryState.enterFamily(
-                familyURL: familyURL,
-                dateLabel: dateFilterStore.accessoryLabel,
-                pendingCount: pendingImports.pending(for: familyURL)?.outcome.records.count ?? 0
-            )
-        }
-    }
-
-    private var tabSelection: Binding<RootTab> {
-        Binding(
-            get: { router.selectedTab },
-            set: { newValue in
-                guard newValue != .plus else {
-                    var transaction = Transaction()
-                    transaction.disablesAnimations = true
-                    let currentTab = router.selectedTab
-                    withTransaction(transaction) {
-                        router.selectedTab = currentTab
-                    }
-                    handlePlusButtonTapped()
-                    return
-                }
-                router.selectedTab = newValue
-            }
-        )
     }
 
     private func handlePlusButtonTapped() {
         switch router.selectedTab {
         case .music:
-            if let familyURL = router.musicPath.last?.familyURL {
-                filePickerPurpose = .har(familyURL: familyURL)
-                isFilePickerPresented = true
-            } else if router.musicSection == .archive {
+            if router.musicSection == .archive {
                 activeSheet = .plus(.archiveActions)
             } else {
                 activeSheet = .plus(.unavailable(pageName: "音乐"))
@@ -481,8 +390,6 @@ struct RootView: View {
             isFilePickerPresented = true
         case .more:
             activeSheet = .plus(.unavailable(pageName: "更多"))
-        case .plus:
-            break
         }
     }
 

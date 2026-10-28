@@ -4,6 +4,8 @@ import UIKit
 struct FeedPostDetailView: View {
     let post: FeedPost
 
+    @Environment(AppRouter.self) private var router
+
     private var title: String {
         let trimmed = post.caption.trimmingCharacters(in: .whitespacesAndNewlines)
         if let firstLine = trimmed.split(separator: "\n").first {
@@ -43,6 +45,13 @@ struct FeedPostDetailView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("动态详情")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .onAppear {
+            router.isFeedDetailActive = true
+        }
+        .onDisappear {
+            router.isFeedDetailActive = false
+        }
     }
 
     @ViewBuilder

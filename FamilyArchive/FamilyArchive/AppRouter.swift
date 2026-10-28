@@ -17,7 +17,6 @@ enum RootTab: Hashable {
     case video
     case music
     case more
-    case plus
 }
 
 /// The two tabs of the native segmented control in the Music toolbar.
@@ -31,15 +30,9 @@ enum MusicSection: String, Hashable, CaseIterable {
 enum MusicRoute: Hashable {
     case family(String)
     case member(familyURL: String, memberID: String)
-
-    var familyURL: String {
-        switch self {
-        case .family(let familyURL):
-            return familyURL
-        case .member(let familyURL, _):
-            return familyURL
-        }
-    }
+    case fans
+    case medals
+    case cards
 }
 
 /// What the detached "＋" tab should present for the current page.
@@ -63,6 +56,9 @@ final class AppRouter {
     var musicSection: MusicSection = .music
 
     /// Routes pushed on the Music tab's navigation stack. When non-empty the
-    /// user is on a family or member page, which changes the "＋" behaviour.
+    /// user is on a family or member page, which hides the custom bottom bar.
     var musicPath: [MusicRoute] = []
+
+    /// True while a post detail is pushed on the Feed tab.
+    var isFeedDetailActive = false
 }

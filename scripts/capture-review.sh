@@ -107,29 +107,62 @@ shot() {
   echo "    captured $1"
 }
 
-# Music root: search accessory, archive section.
-launch "Music root (search accessory)" -UIPreviewMusic
+# Custom bottom toolbar states.
+launch "Music root (search + date + plus)" -UIPreviewMusic
 shot music_tab_ui.png
 
-# Family detail: two mutually exclusive accessory forms.
-launch "Family detail (date accessory)" -UIPreviewFamily
-shot family_date_accessory_ui.png
+launch "My page sections" -UIPreviewMusic
+shot my_page_sections_ui.png
 
-launch "Family detail (pending accessory)" -UIPreviewFamily -UIPreviewPending
-shot family_pending_accessory_ui.png
+launch "Fans skins" -UIPreviewFans
+sleep 1
+shot fans_ui.png
 
-# Member detail: date filter accessory must still be present.
-launch "Member detail" -UIPreviewMember
+launch "Medal hall" -UIPreviewMedals
+sleep 1
+shot medals_ui.png
+
+launch "Lyric cards" -UIPreviewCards
+sleep 1
+shot cards_ui.png
+
+# Secondary pages: native tab bar and custom bar must both be hidden.
+launch "Family detail (bar hidden)" -UIPreviewFamily
+shot family_detail_ui.png
+
+launch "Member detail (bar hidden)" -UIPreviewMember
 shot member_detail_ui.png
 
-# Feed search field: in-place style and keyboard focus.
-launch "Feed search field style" -UIPreviewFeedSearch
-sleep 3
+# Feed toolbar: date bar + search icon + plus.
+launch "Feed toolbar" -UIPreviewFeed
+shot feed_tab_ui.png
+
+# Feed search: in-place long search bar + date icon + plus.
+launch "Feed search toolbar" -UIPreviewFeedSearch
 shot feed_search_ui.png
 
-launch "Feed search field" -UIPreviewSearchFocus
+launch "Feed search focused" -UIPreviewSearchFocus
 sleep 4
 shot feed_search_focused_ui.png
+
+launch "Video toolbar (search + date + plus)" -UIPreviewVideo
+shot video_tab_ui.png
+
+launch "More (no toolbar)" -UIPreviewMore
+shot more_tab_ui.png
+
+# Date filter and plus use the same sheet API and animation.
+launch "Date filter sheet" -UIPreviewDateSheet
+sleep 3
+shot date_filter_sheet_ui.png
+
+launch "Feed plus sheet" -UIPreviewFeedPlus
+sleep 3
+shot feed_plus_sheet_ui.png
+
+launch "Music plus sheet" -UIPreviewMusicPlus
+sleep 3
+shot music_plus_sheet_ui.png
 
 # System share sheet for the family share button.
 launch "Family share sheet" -UIPreviewFamily -UIPreviewShare
@@ -145,26 +178,6 @@ for ((i = 0; i < 15; i++)); do
 done
 cp "$CONTAINER/Documents/family-honor-export.png" "$ROOT/family_honor_export.png"
 echo "    captured family_honor_export.png"
-
-# App Store style date sheet: opaque adaptive background.
-launch "Date filter sheet" -UIPreviewDateSheet
-sleep 3
-shot date_filter_sheet_ui.png
-
-# App Store style pending files sheet: opaque adaptive background.
-launch "Pending files sheet" -UIPreviewPendingSheet
-sleep 3
-shot pending_files_sheet_ui.png
-
-# Per-tab accessory content.
-launch "Feed accessory" -UIPreviewFeed
-shot feed_tab_ui.png
-
-launch "Video accessory" -UIPreviewVideo
-shot video_tab_ui.png
-
-launch "More (no accessory)" -UIPreviewMore
-shot more_tab_ui.png
 
 # Lifecycle tour: member -> family -> archive, driven by the real NavigationStack
 # path. Timers inside the app run at 5s and 10s after appearing.

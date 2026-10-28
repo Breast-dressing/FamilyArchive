@@ -26,18 +26,22 @@ jobs:
           name: ui-review-screenshots
           path: |
             music_tab_ui.png
-            family_date_accessory_ui.png
-            family_pending_accessory_ui.png
+            my_page_sections_ui.png
+            fans_ui.png
+            medals_ui.png
+            cards_ui.png
+            family_detail_ui.png
             member_detail_ui.png
-            date_filter_sheet_ui.png
-            pending_files_sheet_ui.png
             feed_tab_ui.png
             feed_search_ui.png
             feed_search_focused_ui.png
-            share_sheet_ui.png
-            family_honor_export.png
             video_tab_ui.png
             more_tab_ui.png
+            date_filter_sheet_ui.png
+            feed_plus_sheet_ui.png
+            music_plus_sheet_ui.png
+            share_sheet_ui.png
+            family_honor_export.png
             tour_member_ui.png
             tour_family_ui.png
             tour_archive_ui.png

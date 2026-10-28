@@ -355,3 +355,114 @@ final class FamilySharePayloadTests: XCTestCase {
         XCTAssertGreaterThan(image?.size.width ?? 0, 0)
     }
 }
+
+
+final class BadgeSkinServiceTests: XCTestCase {
+    func testParsesSkinSSR() {
+        let json = """
+        {"code":0,"data":{"SkinInfo":{"ID":"3069960-100","Name":"星夜","UnlockedTs":1700000000,"UnlockedUserCnt":12,"LevelList":[{"Pic":"https://example.com/skin.png","State":2,"BGColor":"#ffffff","LevelUnlockGuide":{"TaskList":[{"Title":"完成签到"}]}}]}}}
+        """
+        let escaped = json.replacingOccurrences(of: "\"", with: "\\\"")
+        let html = "window.__ssrFirstPageData__ = \"\(escaped)\";"
+
+        let skin = BadgeSkinService.parse(html: html, sequence: 100)
+        XCTAssertEqual(skin?.name, "星夜")
+        XCTAssertEqual(skin?.isUnlocked, true)
+        XCTAssertEqual(skin?.userCount, 12)
+        XCTAssertEqual(skin?.unlockTask, "完成签到")
+        XCTAssertEqual(skin?.imageURL, "https://example.com/skin.png")
+    }
+}
+
+final class MedalHallServiceTests: XCTestCase {
+    func testParsesModuleAndMedals() {
+        let module: [String: Any] = [
+            "ModuleID": 7,
+            "ModuleName": "默认勋章",
+            "Style": ["HasNext": true],
+            "MedalList": [
+                [
+                    "MedalID": "medal-1",
+                    "Name": "闪耀",
+                    "PicURL": "https://example.com/medal.png",
+                    "Level": 3,
+                    "CreateTime": "2026-10-01"
+                ],
+                [
+                    "MedalID": "medal-2",
+                    "Name": "未获得",
+                    "PicURL": "",
+                    "Level": 1
+                ]
+            ]
+        ]
+
+        let modules = MedalHallService.parseModules([module])
+        XCTAssertEqual(modules.count, 1)
+        XCTAssertEqual(modules.first?.name, "默认勋章")
+        XCTAssertEqual(modules.first?.medals.count, 2)
+        XCTAssertEqual(modules.first?.medals.first?.isObtained, true)
+        XCTAssertEqual(modules.first?.medals.last?.isObtained, false)
+    }
+}
+
+final class LyricCardServiceTests: XCTestCase {
+    func testParsesHARCardsAndSerials() throws {
+        let cards: [[String: Any]] = [
+            [
+                "ID": "card-1",
+                "Rarity": 6,
+                "FgPic": "http://example.com/front.png",
+                "Num": 2,
+                "CardBackInfo": [
+                    "SongName": "七里香",
+                    "SingerName": "周杰伦",
+                    "Pic": "http://example.com/back.png"
+                ],
+                "CardMaterialInfo": [
+                    "CardMaterials": [
+                        ["MaterialName": "星光", "IsUnlock": true, "MaterialPic": ""]
+                    ]
+                ]
+            ]
+        ]
+        let ssr: [String: Any] = ["allCardList": ["Cards": cards]]
+        let ssrData = try JSONSerialization.data(withJSONObject: ssr)
+        let ssrString = String(data: ssrData, encoding: .utf8)!
+        let escaped = ssrString.replacingOccurrences(of: "\"", with: "\\\"")
+        let html = "window.__ssrFirstPageData__ = \"\(escaped)\";"
+
+        let requestPost = """
+        {"req_0":{"param":{"IDs":["card-1"]}}}
+        """
+        let responseJSON = """
+        {"req_0":{"data":{"Card":{"ID":"card-1","SerialNumList":["A001","A002"]}}}}
+        """
+
+        let har: [String: Any] = [
+            "log": [
+                "entries": [
+                    [
+                        "request": ["url": "https://y.qq.com/singer_cards_collection.html"],
+                        "response": ["content": ["text": html]]
+                    ],
+                    [
+                        "request": [
+                            "url": "https://u6.y.qq.com/cgi-bin/musics.fcg?_webcgikey=GetCardInfoByIDs",
+                            "postData": ["text": requestPost]
+                        ],
+                        "response": ["content": ["text": responseJSON]]
+                    ]
+                ]
+            ]
+        ]
+
+        let data = try JSONSerialization.data(withJSONObject: har)
+        let parsed = try LyricCardService.parseHAR(data: data)
+        XCTAssertEqual(parsed.count, 1)
+        XCTAssertEqual(parsed.first?.songName, "七里香")
+        XCTAssertEqual(parsed.first?.rarity, "SSR")
+        XCTAssertEqual(parsed.first?.serials, ["A001", "A002"])
+        XCTAssertEqual(parsed.first?.imageURL, "https://example.com/front.png")
+    }
+}

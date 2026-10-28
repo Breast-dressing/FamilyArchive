@@ -25,6 +25,13 @@ struct ArchiveView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                sectionLink(
+                    title: "乐迷",
+                    subtitle: "勋章皮肤分类与解锁状态",
+                    systemImage: "person.2.fill",
+                    route: .fans
+                )
+
                 Text("家族信息")
                     .font(.title2.bold())
                     .foregroundStyle(.primary)
@@ -71,6 +78,20 @@ struct ArchiveView: View {
                         applyReorder(difference)
                     }
                 }
+
+                sectionLink(
+                    title: "勋章",
+                    subtitle: "勋章馆分类、模块与获得状态",
+                    systemImage: "medal.fill",
+                    route: .medals
+                )
+
+                sectionLink(
+                    title: "卡牌",
+                    subtitle: "歌词卡、卡面与实体编号",
+                    systemImage: "rectangle.stack.fill",
+                    route: .cards
+                )
             }
             .padding(.vertical, 8)
         }
@@ -102,6 +123,49 @@ struct ArchiveView: View {
         } message: {
             Text("确定要删除该家族吗？")
         }
+    }
+
+    private func sectionLink(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        route: MusicRoute
+    ) -> some View {
+        NavigationLink(value: route) {
+            HStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(.tint)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Color(uiColor: .tertiarySystemFill),
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote.bold())
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(
+                Color(uiColor: .secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+            .padding(.horizontal, 16)
+        }
+        .buttonStyle(.plain)
     }
 
     private func applyReorder(

@@ -47,6 +47,12 @@ struct MusicRootView: View {
                     FamilyDetailView(familyURL: familyURL)
                 case .member(let familyURL, let memberID):
                     MemberDetailView(familyURL: familyURL, memberID: memberID)
+                case .fans:
+                    FansSkinsView()
+                case .medals:
+                    MedalHallView()
+                case .cards:
+                    LyricCardsView()
                 }
             }
         }
