@@ -32,7 +32,12 @@ struct DateFilterAccessoryButton: View {
                         .font(.subheadline.bold())
                         .lineLimit(1)
                 }
+
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
