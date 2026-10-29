@@ -361,6 +361,7 @@ struct RootView: View {
             dateLabel: dateFilterStore.accessoryLabel,
             namespace: accessoryNamespace,
             searchText: currentSearchText,
+            focus: $accessorySearchFocused,
             onSearchSubmit: {
                 accessorySearchFocused = false
             },

@@ -11,9 +11,8 @@ import SwiftUI
 
 struct ToolbarSearchField: View {
     @Binding var text: String
+    var focus: FocusState<Bool>.Binding
     var onSubmit: () -> Void = {}
-
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
@@ -27,16 +26,16 @@ struct ToolbarSearchField: View {
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .submitLabel(.search)
-                .focused($isFocused)
+                .focused(focus)
                 .onSubmit {
-                    isFocused = false
+                    focus.wrappedValue = false
                     onSubmit()
                 }
 
-            if isFocused || !text.isEmpty {
+            if focus.wrappedValue || !text.isEmpty {
                 Button {
                     text = ""
-                    isFocused = false
+                    focus.wrappedValue = false
                     onSubmit()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
@@ -51,7 +50,7 @@ struct ToolbarSearchField: View {
         }
         .padding(.horizontal, 14)
         .frame(height: BottomToolbarLayout.controlSize)
-        .animation(.snappy, value: isFocused)
+        .animation(.snappy, value: focus.wrappedValue)
         .animation(.snappy, value: text.isEmpty)
     }
 }

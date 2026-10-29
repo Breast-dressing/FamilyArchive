@@ -47,6 +47,7 @@ struct BottomToolbar: View {
     let dateLabel: String
     let namespace: Namespace.ID
     @Binding var searchText: String
+    var focus: FocusState<Bool>.Binding
     let onSearchSubmit: () -> Void
     let onDateTap: () -> Void
     let onPlusTap: () -> Void
@@ -80,7 +81,7 @@ struct BottomToolbar: View {
     /// The system search field keeps its intrinsic height, typography and
     /// glyphs; only the surrounding glass is ours.
     private var searchControl: some View {
-        ToolbarSearchField(text: $searchText, onSubmit: onSearchSubmit)
+        ToolbarSearchField(text: $searchText, focus: focus, onSubmit: onSearchSubmit)
             .frame(maxWidth: .infinity)
             .glassEffect(.regular.interactive(), in: Capsule())
             .accessibilityLabel("搜索")
