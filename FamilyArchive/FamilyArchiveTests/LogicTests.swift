@@ -466,3 +466,30 @@ final class LyricCardServiceTests: XCTestCase {
         XCTAssertEqual(parsed.first?.imageURL, "https://example.com/front.png")
     }
 }
+
+final class BottomToolbarLayoutTests: XCTestCase {
+    func testControlOrderIsLockedToSearchDatePlus() {
+        XCTAssertEqual(BottomToolbarLayout.controls, [.search, .date, .plus])
+    }
+
+    func testControlOrderNeverChangesWithTab() {
+        for tab in RootTab.allCases {
+            XCTAssertEqual(
+                BottomToolbarLayout.controls(for: tab),
+                [.search, .date, .plus],
+                "\(tab.title) 的工具栏顺序被改动"
+            )
+        }
+    }
+}
+
+final class RootTabTests: XCTestCase {
+    func testMainTabOrderIncludesBillingBeforeMore() {
+        XCTAssertEqual(RootTab.allCases, [.feed, .video, .music, .billing, .more])
+    }
+
+    func testBillingTabMetadata() {
+        XCTAssertEqual(RootTab.billing.title, "账单")
+        XCTAssertEqual(RootTab.billing.systemImage, "creditcard")
+    }
+}

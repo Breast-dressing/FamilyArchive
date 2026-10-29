@@ -133,7 +133,7 @@ shot family_detail_ui.png
 launch "Member detail (bar hidden)" -UIPreviewMember
 shot member_detail_ui.png
 
-# Feed toolbar: date bar + search icon + plus.
+# Feed toolbar: search capsule + date circle + plus circle.
 launch "Feed toolbar" -UIPreviewFeed
 shot feed_tab_ui.png
 
@@ -147,6 +147,9 @@ shot feed_search_focused_ui.png
 
 launch "Video toolbar (search + date + plus)" -UIPreviewVideo
 shot video_tab_ui.png
+
+launch "Billing (native list placeholder)" -UIPreviewBilling
+shot billing_tab_ui.png
 
 launch "More (no toolbar)" -UIPreviewMore
 shot more_tab_ui.png

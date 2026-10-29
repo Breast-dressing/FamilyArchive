@@ -10,13 +10,43 @@
 import Foundation
 import Observation
 
-/// The five main tab bar items. `.plus` is the detached item and is deliberately
-/// never written into `selectedTab`.
-enum RootTab: Hashable {
+/// The five main tab bar items, in display order.
+enum RootTab: String, Hashable, CaseIterable {
     case feed
     case video
     case music
+    case billing
     case more
+
+    var title: String {
+        switch self {
+        case .feed:
+            return "动态"
+        case .video:
+            return "影视"
+        case .music:
+            return "音乐"
+        case .billing:
+            return "账单"
+        case .more:
+            return "更多"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .feed:
+            return "square.stack"
+        case .video:
+            return "play.rectangle"
+        case .music:
+            return "music.note"
+        case .billing:
+            return "creditcard"
+        case .more:
+            return "ellipsis"
+        }
+    }
 }
 
 /// The two tabs of the native segmented control in the Music toolbar.

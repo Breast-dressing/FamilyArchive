@@ -68,7 +68,7 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $router.selectedTab) {
-            Tab("动态", systemImage: "square.stack", value: RootTab.feed) {
+            Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
                 FeedView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         if !isBottomBarHidden {
@@ -77,7 +77,7 @@ struct RootView: View {
                     }
             }
 
-            Tab("影视", systemImage: "play.rectangle", value: RootTab.video) {
+            Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
                 VideoView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         if !isBottomBarHidden {
@@ -86,7 +86,7 @@ struct RootView: View {
                     }
             }
 
-            Tab("音乐", systemImage: "music.note", value: RootTab.music) {
+            Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
                 MusicRootView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         if !isBottomBarHidden {
@@ -95,7 +95,11 @@ struct RootView: View {
                     }
             }
 
-            Tab("更多", systemImage: "ellipsis", value: RootTab.more) {
+            Tab(RootTab.billing.title, systemImage: RootTab.billing.systemImage, value: RootTab.billing) {
+                BillingView()
+            }
+
+            Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more) {
                 MoreView()
             }
         }
@@ -275,6 +279,8 @@ struct RootView: View {
             router.selectedTab = .video
         } else if arguments.contains("-UIPreviewMore") {
             router.selectedTab = .more
+        } else if arguments.contains("-UIPreviewBilling") {
+            router.selectedTab = .billing
         } else if arguments.contains("-UIPreviewArchive") {
             router.selectedTab = .music
             router.musicSection = .archive
@@ -379,7 +385,7 @@ struct RootView: View {
 
     private var isBottomBarHidden: Bool {
         switch router.selectedTab {
-        case .more:
+        case .more, .billing:
             return true
         case .music:
             return !router.musicPath.isEmpty
@@ -403,6 +409,8 @@ struct RootView: View {
         case .video:
             filePickerPurpose = .video
             isFilePickerPresented = true
+        case .billing:
+            activeSheet = .plus(.unavailable(pageName: "账单"))
         case .more:
             activeSheet = .plus(.unavailable(pageName: "更多"))
         }
