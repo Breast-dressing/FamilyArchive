@@ -62,6 +62,13 @@ struct RootView: View {
     /// 1 = floating bar fully on screen, 0 = gone. One continuous number, so the
     /// exit can be interrupted and reversed at any point.
     @State private var barProgress: Double = 1
+    /// Bottom chrome under a tab's content: the home indicator **and** the tab
+    /// bar, which the `TabView` draws as chrome outside its own safe area.
+    @State private var tabBottomInset: CGFloat = 0
+    /// The same measurement taken on the `TabView` itself, where only the home
+    /// indicator is counted; the difference between the two is the tab bar.
+    @State private var windowBottomInset: CGFloat = 0
+    @State private var hasMeasuredBottomChrome = false
     @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
@@ -72,15 +79,15 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $router.selectedTab) {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
-                FeedView()
+                measuredTab(.feed) { FeedView() }
             }
 
             Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
-                VideoView()
+                measuredTab(.video) { VideoView() }
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
-                MusicRootView()
+                measuredTab(.music) { MusicRootView() }
             }
 
             Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
@@ -88,8 +95,18 @@ struct RootView: View {
             }
         }
         .tint(.blue)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.safeAreaInsets.bottom
+        } action: { inset in
+            windowBottomInset = inset
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
+            // The tab bar is chrome drawn by the `TabView`, not part of its safe
+            // area, so a plain inset lands on top of the tab bar. The measured
+            // clearance puts the bar back on the band right above it.
             floatingBar
+                .padding(.bottom, bottomBarClearance)
+                .opacity(hasMeasuredBottomChrome ? 1 : 0)
         }
         .environment(router)
         .environment(pendingImports)
@@ -414,6 +431,40 @@ struct RootView: View {
             .opacity(BottomToolbarLayout.opacity(progress: barProgress))
             .allowsHitTesting(barProgress > 0.5)
             .accessibilityHidden(barProgress < 0.5)
+    }
+
+    /// How far the bar has to clear the bottom edge to sit above the tab bar:
+    /// the tab content's bottom inset (tab bar + home indicator) minus the
+    /// `TabView`'s own (home indicator only).
+    ///
+    /// Measured once and then kept, so the bar does not shift when the tab bar
+    /// hides on a secondary page — there it stays on the same band instead of
+    /// jumping while the push transition is running.
+    private var bottomBarClearance: CGFloat {
+        max(0, tabBottomInset - windowBottomInset)
+    }
+
+    /// Reports how much bottom chrome sits under a tab's content.
+    ///
+    /// The shared bar is drawn by the `TabView`, outside the tab's safe area, so
+    /// this is the only way to put it on the band right above the tab bar without
+    /// hard-coding a height.
+    private func measuredTab<Content: View>(
+        _ tab: RootTab,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        content()
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.safeAreaInsets.bottom
+            } action: { inset in
+                guard router.selectedTab == tab, inset > 0,
+                      !hasMeasuredBottomChrome else { return }
+                tabBottomInset = inset
+                hasMeasuredBottomChrome = true
+                #if DEBUG
+                print("[BottomChrome] \(tab.rawValue) inset=\(inset) window=\(windowBottomInset)")
+                #endif
+            }
     }
 
     /// The curve the bar leaves and returns on.
