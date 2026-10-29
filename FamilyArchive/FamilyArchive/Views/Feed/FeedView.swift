@@ -10,6 +10,7 @@ struct FeedView: View {
 
     @State private var selectedPlatform = ""
     @State private var isAccountsPresented = false
+    @Namespace private var accountsNamespace
 
     private var scopedAccounts: [Account] {
         accounts.filter { $0.scope == AccountScope.feed.rawValue }
@@ -80,11 +81,30 @@ struct FeedView: View {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
+                    .matchedTransitionSource(
+                        id: AccountsTransitionSource.sourceID(for: .feed),
+                        in: accountsNamespace
+                    )
                     .accessibilityLabel("账号")
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {
                 AccountsView(scope: .feed)
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccountsTransitionSource.sourceID(for: .feed),
+                            in: accountsNamespace
+                        )
+                    )
+            }
+            .onAppear {
+                #if DEBUG
+                guard UIPreviewSeed.wantsAccountsSheet else { return }
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1.2))
+                    isAccountsPresented = true
+                }
+                #endif
             }
         }
     }

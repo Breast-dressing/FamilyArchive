@@ -160,6 +160,12 @@ launch "Feed plus sheet" -UIPreviewFeedPlus
 sleep 3
 shot feed_plus_sheet_ui.png
 
+# Accounts sheet: presented from the 动态 NavigationBar button, so the zoom
+# transition is anchored on that button instead of the sheet's default origin.
+launch "Feed accounts sheet" -UIPreviewAccounts
+sleep 3
+shot accounts_sheet_ui.png
+
 launch "Music plus sheet" -UIPreviewMusicPlus
 sleep 3
 shot music_plus_sheet_ui.png

@@ -9,6 +9,7 @@ struct VideoView: View {
 
     @State private var selectedPlatform = ""
     @State private var isAccountsPresented = false
+    @Namespace private var accountsNamespace
 
     private var scopedAccounts: [Account] {
         accounts.filter { $0.scope == AccountScope.video.rawValue }
@@ -101,11 +102,21 @@ struct VideoView: View {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
+                    .matchedTransitionSource(
+                        id: AccountsTransitionSource.sourceID(for: .video),
+                        in: accountsNamespace
+                    )
                     .accessibilityLabel("账号")
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {
                 AccountsView(scope: .video)
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccountsTransitionSource.sourceID(for: .video),
+                            in: accountsNamespace
+                        )
+                    )
             }
         }
     }

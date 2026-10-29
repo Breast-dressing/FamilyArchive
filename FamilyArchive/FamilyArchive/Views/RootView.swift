@@ -284,6 +284,10 @@ struct RootView: View {
             showMusic([])
         } else if arguments.contains("-UIPreviewFeed") {
             router.selectedTab = .feed
+        } else if arguments.contains("-UIPreviewAccounts") {
+            // The sheet itself is owned by FeedView; this only makes the tab
+            // explicit so the screenshot never depends on the default.
+            router.selectedTab = .feed
         } else if arguments.contains("-UIPreviewVideo") {
             router.selectedTab = .video
         } else if arguments.contains("-UIPreviewMore") {

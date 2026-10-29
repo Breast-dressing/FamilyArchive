@@ -3,6 +3,7 @@ import SwiftUI
 struct MusicRootView: View {
     @Environment(AppRouter.self) private var router
     @State private var isAccountsPresented = false
+    @Namespace private var accountsNamespace
 
     var body: some View {
         @Bindable var router = router
@@ -35,11 +36,21 @@ struct MusicRootView: View {
                     } label: {
                         Image(systemName: "person.crop.circle")
                     }
+                    .matchedTransitionSource(
+                        id: AccountsTransitionSource.sourceID(for: .music),
+                        in: accountsNamespace
+                    )
                     .accessibilityLabel("账号")
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {
                 AccountsView(scope: .music)
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccountsTransitionSource.sourceID(for: .music),
+                            in: accountsNamespace
+                        )
+                    )
             }
             .navigationDestination(for: MusicRoute.self) { route in
                 switch route {

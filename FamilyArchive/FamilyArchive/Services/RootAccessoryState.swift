@@ -25,6 +25,24 @@ enum AccessoryTransition {
     static let plus = "accessory.plus"
 }
 
+/// Transition source identifiers for the 账号 sheet.
+///
+/// The sheet is presented from a NavigationBar button that lives *inside* each
+/// tab, not from the shared bottom accessory, so every scope keeps its own id:
+/// one id shared by three tabs would let the zoom transition anchor on a source
+/// that is not the one on screen. `AccountScope` is the only input, so a scope
+/// can never be added without a source id.
+enum AccountsTransitionSource {
+    static func sourceID(for scope: AccountScope) -> String {
+        "accounts.\(scope.rawValue)"
+    }
+
+    /// Every source id the app registers, for collision checks.
+    static var allIDs: [String] {
+        AccountScope.allCases.map(sourceID(for:))
+    }
+}
+
 @Observable
 final class RootAccessoryState {
     var musicForm: MusicAccessoryForm = .search

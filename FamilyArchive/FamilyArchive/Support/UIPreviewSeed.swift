@@ -79,6 +79,12 @@ enum UIPreviewSeed {
         try? context.save()
     }
 
+    /// Debug-only review route: the 动态 tab opens its 账号 sheet on launch so the
+    /// NavigationBar-anchored zoom transition has a deterministic screenshot.
+    static var wantsAccountsSheet: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UIPreviewAccounts")
+    }
+
     /// Debug-only pending import used by the UI review route to exercise the
     /// "待保存文件" sheet without a real HAR selection.
     static func pendingOutcome() -> HARImportOutcome {

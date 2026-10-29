@@ -574,3 +574,30 @@ final class MusicQueryStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.records.first?.kind, MusicQueryRecord.medalKind)
     }
 }
+
+/// Every tab presents 账号 from its own NavigationBar button, and the zoom
+/// transition anchors on the matching `matchedTransitionSource`. A duplicated id
+/// would anchor on a button that is not on screen, and an id that collides with
+/// the bottom accessory would anchor on the wrong chrome entirely.
+final class AccountsTransitionSourceTests: XCTestCase {
+    func testSourceIDsAreStablePerScope() {
+        XCTAssertEqual(AccountsTransitionSource.sourceID(for: .feed), "accounts.feed")
+        XCTAssertEqual(AccountsTransitionSource.sourceID(for: .video), "accounts.video")
+        XCTAssertEqual(AccountsTransitionSource.sourceID(for: .music), "accounts.music")
+    }
+
+    func testEveryScopeHasExactlyOneSourceID() {
+        let ids = AccountsTransitionSource.allIDs
+        XCTAssertEqual(ids.count, AccountScope.allCases.count)
+        XCTAssertEqual(Set(ids).count, ids.count)
+    }
+
+    func testSourceIDsNeverCollideWithAccessoryTransitions() {
+        let accessoryIDs: Set<String> = [
+            AccessoryTransition.dateFilter,
+            AccessoryTransition.pendingFiles,
+            AccessoryTransition.plus
+        ]
+        XCTAssertTrue(Set(AccountsTransitionSource.allIDs).isDisjoint(with: accessoryIDs))
+    }
+}
