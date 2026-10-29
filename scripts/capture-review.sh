@@ -148,10 +148,7 @@ shot feed_search_focused_ui.png
 launch "Video toolbar (search + date + plus)" -UIPreviewVideo
 shot video_tab_ui.png
 
-launch "Billing (native list placeholder)" -UIPreviewBilling
-shot billing_tab_ui.png
-
-launch "More (no toolbar)" -UIPreviewMore
+launch "More (detached tab, no toolbar)" -UIPreviewMore
 shot more_tab_ui.png
 
 # Date filter and plus use the same sheet API and animation.

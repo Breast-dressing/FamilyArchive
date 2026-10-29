@@ -3,19 +3,19 @@
 //  FamilyArchive
 //
 //  Shared navigation state. The main tab bar and the Music toolbar both read
-//  and write this object, which is what lets the detached "＋" tab decide what
-//  to present based on the *current* page/tab.
+//  and write this object, so the floating toolbar can decide what to present
+//  based on the *current* page/tab.
 //
 
 import Foundation
 import Observation
 
-/// The five main tab bar items, in display order.
+/// The four main tab bar items, in display order. 更多 is rendered detached by
+/// the system (`role: .prominent`).
 enum RootTab: String, Hashable, CaseIterable {
     case feed
     case video
     case music
-    case billing
     case more
 
     var title: String {
@@ -26,8 +26,6 @@ enum RootTab: String, Hashable, CaseIterable {
             return "影视"
         case .music:
             return "音乐"
-        case .billing:
-            return "账单"
         case .more:
             return "更多"
         }
@@ -41,8 +39,6 @@ enum RootTab: String, Hashable, CaseIterable {
             return "play.rectangle"
         case .music:
             return "music.note"
-        case .billing:
-            return "creditcard"
         case .more:
             return "ellipsis"
         }

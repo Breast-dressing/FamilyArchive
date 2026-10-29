@@ -2,10 +2,9 @@
 //  RootView.swift
 //  FamilyArchive
 //
-//  Native bottom tab bar. The "＋" item is a real tab item declared with
-//  `role: .prominent`, which the system places in a separate trailing position
-//  of the tab bar. Its selection is intercepted, so tapping it never switches
-//  tabs: it presents the action that belongs to the current page.
+//  Native bottom tab bar. 更多 is declared with `role: .prominent`, which the
+//  system detaches from the main tab group and places in a separate trailing
+//  position, while still selecting its page normally.
 //
 
 import Foundation
@@ -95,11 +94,7 @@ struct RootView: View {
                     }
             }
 
-            Tab(RootTab.billing.title, systemImage: RootTab.billing.systemImage, value: RootTab.billing) {
-                BillingView()
-            }
-
-            Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more) {
+            Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
                 MoreView()
             }
         }
@@ -279,8 +274,6 @@ struct RootView: View {
             router.selectedTab = .video
         } else if arguments.contains("-UIPreviewMore") {
             router.selectedTab = .more
-        } else if arguments.contains("-UIPreviewBilling") {
-            router.selectedTab = .billing
         } else if arguments.contains("-UIPreviewArchive") {
             router.selectedTab = .music
             router.musicSection = .archive
@@ -385,7 +378,7 @@ struct RootView: View {
 
     private var isBottomBarHidden: Bool {
         switch router.selectedTab {
-        case .more, .billing:
+        case .more:
             return true
         case .music:
             return !router.musicPath.isEmpty
@@ -409,8 +402,6 @@ struct RootView: View {
         case .video:
             filePickerPurpose = .video
             isFilePickerPresented = true
-        case .billing:
-            activeSheet = .plus(.unavailable(pageName: "账单"))
         case .more:
             activeSheet = .plus(.unavailable(pageName: "更多"))
         }

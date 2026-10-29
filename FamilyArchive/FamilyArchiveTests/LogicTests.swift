@@ -484,12 +484,13 @@ final class BottomToolbarLayoutTests: XCTestCase {
 }
 
 final class RootTabTests: XCTestCase {
-    func testMainTabOrderIncludesBillingBeforeMore() {
-        XCTAssertEqual(RootTab.allCases, [.feed, .video, .music, .billing, .more])
+    func testMainTabOrderIsFeedVideoMusicMore() {
+        XCTAssertEqual(RootTab.allCases, [.feed, .video, .music, .more])
     }
 
-    func testBillingTabMetadata() {
-        XCTAssertEqual(RootTab.billing.title, "账单")
-        XCTAssertEqual(RootTab.billing.systemImage, "creditcard")
+    func testMoreTabMetadataStaysLast() {
+        XCTAssertEqual(RootTab.more.title, "更多")
+        XCTAssertEqual(RootTab.more.systemImage, "ellipsis")
+        XCTAssertEqual(RootTab.allCases.last, .more)
     }
 }
