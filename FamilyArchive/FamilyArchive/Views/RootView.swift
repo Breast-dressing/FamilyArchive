@@ -62,12 +62,13 @@ struct RootView: View {
     /// 1 = floating bar fully on screen, 0 = gone. One continuous number, so the
     /// exit can be interrupted and reversed at any point.
     @State private var barProgress: Double = 1
-    /// Bottom chrome under a tab's content: the home indicator **and** the tab
-    /// bar, which the `TabView` draws as chrome outside its own safe area.
-    @State private var tabBottomInset: CGFloat = 0
-    /// The same measurement taken on the `TabView` itself, where only the home
-    /// indicator is counted; the difference between the two is the tab bar.
-    @State private var windowBottomInset: CGFloat = 0
+    /// Where the `TabView` itself ends, in global coordinates.
+    @State private var windowFrame: CGRect = .zero
+    /// Where a tab's page ends. The gap between the two is the tab bar band: the
+    /// `TabView` draws its tab bar as chrome, so neither safe area contains it.
+    @State private var tabContentFrame: CGRect = .zero
+    @State private var tabSafeBottom: CGFloat = 0
+    @State private var windowSafeBottom: CGFloat = 0
     @State private var hasMeasuredBottomChrome = false
     @FocusState private var accessorySearchFocused: Bool
 
@@ -95,10 +96,18 @@ struct RootView: View {
             }
         }
         .tint(.blue)
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .global)
+        } action: { frame in
+            windowFrame = frame
+            #if DEBUG
+            writeBottomChromeDiag("window")
+            #endif
+        }
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.safeAreaInsets.bottom
         } action: { inset in
-            windowBottomInset = inset
+            windowSafeBottom = inset
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             // The tab bar is chrome drawn by the `TabView`, not part of its safe
@@ -433,39 +442,64 @@ struct RootView: View {
             .accessibilityHidden(barProgress < 0.5)
     }
 
-    /// How far the bar has to clear the bottom edge to sit above the tab bar:
-    /// the tab content's bottom inset (tab bar + home indicator) minus the
-    /// `TabView`'s own (home indicator only).
+    /// How far the bar has to clear the bottom edge to sit above the tab bar: the
+    /// gap between where the `TabView` ends and where a tab's page ends. The tab
+    /// bar lives in that gap, in neither safe area.
     ///
     /// Measured once and then kept, so the bar does not shift when the tab bar
     /// hides on a secondary page — there it stays on the same band instead of
     /// jumping while the push transition is running.
     private var bottomBarClearance: CGFloat {
-        max(0, tabBottomInset - windowBottomInset)
+        max(0, windowFrame.maxY - tabContentFrame.maxY)
     }
 
-    /// Reports how much bottom chrome sits under a tab's content.
-    ///
-    /// The shared bar is drawn by the `TabView`, outside the tab's safe area, so
-    /// this is the only way to put it on the band right above the tab bar without
-    /// hard-coding a height.
+    /// Reports where a tab's page ends so the shared bar can be placed on the band
+    /// right above the tab bar without hard-coding a height.
     private func measuredTab<Content: View>(
         _ tab: RootTab,
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
+            .onGeometryChange(for: CGRect.self) { proxy in
+                proxy.frame(in: .global)
+            } action: { frame in
+                guard router.selectedTab == tab, !hasMeasuredBottomChrome else { return }
+                tabContentFrame = frame
+                hasMeasuredBottomChrome = true
+                #if DEBUG
+                writeBottomChromeDiag("tab-\(tab.rawValue)")
+                #endif
+            }
             .onGeometryChange(for: CGFloat.self) { proxy in
                 proxy.safeAreaInsets.bottom
             } action: { inset in
-                guard router.selectedTab == tab, inset > 0,
-                      !hasMeasuredBottomChrome else { return }
-                tabBottomInset = inset
-                hasMeasuredBottomChrome = true
-                #if DEBUG
-                print("[BottomChrome] \(tab.rawValue) inset=\(inset) window=\(windowBottomInset)")
-                #endif
+                tabSafeBottom = inset
             }
     }
+
+    #if DEBUG
+    /// Debug-only diagnostics for the capture run: the review job copies this
+    /// file out with the screenshots, so a wrong placement is explained by real
+    /// numbers instead of guesses.
+    private func writeBottomChromeDiag(_ label: String) {
+        guard UIPreviewSeed.wantsChromeDiag,
+              let documents = FileManager.default.urls(
+                  for: .documentDirectory,
+                  in: .userDomainMask
+              ).first else { return }
+        let text = """
+        at=\(label)
+        windowFrame=\(windowFrame)
+        tabContentFrame=\(tabContentFrame)
+        windowSafeBottom=\(windowSafeBottom)
+        tabSafeBottom=\(tabSafeBottom)
+        clearance=\(bottomBarClearance)
+        """
+        try? Data(text.utf8).write(
+            to: documents.appendingPathComponent("BottomChromeDiag.txt")
+        )
+    }
+    #endif
 
     /// The curve the bar leaves and returns on.
     private var barAnimation: Animation {

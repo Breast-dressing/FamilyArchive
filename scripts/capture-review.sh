@@ -78,6 +78,7 @@ xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 
 rm -f "$ROOT"/*.png
+rm -f "$ROOT/bar_diag.txt"
 
 CONTAINER="$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)"
 READY_FILE="$CONTAINER/Documents/UIPreviewReady"
@@ -134,8 +135,11 @@ shot family_detail_ui.png
 launch "Member detail (tab bar hidden)" -UIPreviewMember
 shot member_detail_ui.png
 
-# Feed toolbar: search capsule + date circle + plus circle.
-launch "Feed toolbar" -UIPreviewFeed
+# Feed toolbar: search capsule + date circle + plus circle. The diag dump lets a
+# misplaced bar be explained by the measured geometry instead of a guess.
+launch "Feed toolbar" -UIPreviewFeed -UIPreviewChromeDiag
+rm -f "$ROOT/bar_diag.txt"
+cp "$CONTAINER/Documents/BottomChromeDiag.txt" "$ROOT/bar_diag.txt" 2>/dev/null || true
 shot feed_tab_ui.png
 
 # Feed search: in-place long search bar + date icon + plus.

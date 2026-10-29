@@ -91,6 +91,12 @@ enum UIPreviewSeed {
         ProcessInfo.processInfo.arguments.contains("-UIPreviewBarExit")
     }
 
+    /// Debug-only: dump the measured bottom-chrome geometry next to the review
+    /// screenshots, so a misplaced bar can be diagnosed from real numbers.
+    static var wantsChromeDiag: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UIPreviewChromeDiag")
+    }
+
     /// Debug-only pending import used by the UI review route to exercise the
     /// "待保存文件" sheet without a real HAR selection.
     static func pendingOutcome() -> HARImportOutcome {
