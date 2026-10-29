@@ -22,6 +22,7 @@ enum MusicAccessoryForm: Equatable {
 enum AccessoryTransition {
     static let dateFilter = "accessory.dateFilter"
     static let pendingFiles = "accessory.pendingFiles"
+    static let plus = "accessory.plus"
 }
 
 @Observable

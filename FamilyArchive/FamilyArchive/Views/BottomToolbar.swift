@@ -4,7 +4,7 @@
 //
 //  Floating liquid-glass toolbar modelled on the iOS 27 Notes toolbar: one long
 //  capsule on the leading edge and independent glass circles on the trailing
-//  edge.
+//  edge. The leading control is the system search field itself.
 //
 
 import SwiftUI
@@ -28,6 +28,10 @@ enum BottomToolbarLayout {
     static func controls(for tab: RootTab) -> [BottomToolbarControl] {
         controls
     }
+
+    /// Horizontal inset shared by the floating toolbar and the floating tab bar
+    /// so both edges line up on the same vertical grid.
+    static let horizontalInset: CGFloat = 24
 }
 
 /// Custom bottom toolbar that replaces the previous detached "＋" tab and the
@@ -38,9 +42,6 @@ struct BottomToolbar: View {
     let dateLabel: String
     let namespace: Namespace.ID
     @Binding var searchText: String
-    let isSearchFieldActive: Bool
-    var focus: FocusState<Bool>.Binding
-    let onSearchTap: () -> Void
     let onSearchSubmit: () -> Void
     let onDateTap: () -> Void
     let onPlusTap: () -> Void
@@ -53,7 +54,7 @@ struct BottomToolbar: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, BottomToolbarLayout.horizontalInset)
         .padding(.bottom, 6)
     }
 
@@ -69,73 +70,15 @@ struct BottomToolbar: View {
         }
     }
 
-    // MARK: - Leading capsule (search)
+    // MARK: - Leading capsule (native search)
 
-    @ViewBuilder
+    /// The system search field keeps its intrinsic height, typography and
+    /// glyphs; only the surrounding glass is ours.
     private var searchControl: some View {
-        if tab == .feed, !isSearchFieldActive {
-            Button(action: onSearchTap) {
-                searchPlaceholder
-            }
-            .buttonStyle(.plain)
+        NativeSearchBar(text: $searchText, onSubmit: onSearchSubmit)
+            .frame(maxWidth: .infinity)
             .glassEffect(.regular.interactive(), in: Capsule())
             .accessibilityLabel("搜索")
-        } else {
-            searchField
-                .glassEffect(.regular.interactive(), in: Capsule())
-        }
-    }
-
-    private var searchPlaceholder: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(.primary)
-                .frame(width: 24, height: 24)
-
-            Text("搜索")
-                .font(.body)
-                .foregroundStyle(.secondary)
-
-            Spacer(minLength: 0)
-
-            Image(systemName: "mic")
-                .font(.system(size: 18))
-                .foregroundStyle(.primary)
-                .frame(width: 24, height: 24)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .contentShape(Capsule())
-    }
-
-    private var searchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(.primary)
-                .frame(width: 24, height: 24)
-
-            TextField("搜索", text: $searchText)
-                .textFieldStyle(.plain)
-                .font(.body)
-                .submitLabel(.search)
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .focused(focus)
-                .onSubmit(onSearchSubmit)
-
-            Image(systemName: "mic")
-                .font(.system(size: 18))
-                .foregroundStyle(.primary)
-                .frame(width: 24, height: 24)
-                .accessibilityHidden(true)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Trailing circles (date, plus)
@@ -157,6 +100,7 @@ struct BottomToolbar: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: Circle())
+        .matchedTransitionSource(id: AccessoryTransition.plus, in: namespace)
         .accessibilityLabel("添加")
     }
 
@@ -165,7 +109,7 @@ struct BottomToolbar: View {
             .font(.system(size: 21, weight: .medium))
             .foregroundStyle(.primary)
             .frame(width: 24, height: 24)
-            .padding(14)
+            .padding(16)
             .contentShape(Circle())
     }
 }

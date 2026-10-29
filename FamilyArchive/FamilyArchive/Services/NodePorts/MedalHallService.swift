@@ -29,6 +29,11 @@ struct MedalHallSnapshot {
 }
 
 enum MedalHallService {
+    /// The medal hall URL required by the product spec. `enc_uin` is fixed and
+    /// every query overrides whatever the account or pasted URL carried.
+    static let fixedEncUin = "oKEkoiCFoKCAoz**"
+    static let fixedURLString = "https://i2.y.qq.com/n3/client/pages/medal_collection_new/index.html?_hidehd=1&_fontscale=1&_miniplayer=1&enc_uin=oKEkoiCFoKCAoz**&entry=profile&_button=1"
+
     private static let apiURL = "https://u6.y.qq.com/cgi-bin/musics.fcg"
     private static let headers: [String: String] = [
         "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
@@ -38,8 +43,22 @@ enum MedalHallService {
         "Content-Type": "application/json;charset=UTF-8"
     ]
 
+    /// Replaces (or adds) `enc_uin` with the fixed value while keeping every
+    /// other query item intact.
+    static func normalizedURLString(_ urlString: String) -> String {
+        guard var components = URLComponents(string: urlString) else {
+            return fixedURLString
+        }
+        var items = components.queryItems ?? []
+        items.removeAll { $0.name == "enc_uin" }
+        items.append(URLQueryItem(name: "enc_uin", value: fixedEncUin))
+        components.queryItems = items
+        return components.url?.absoluteString ?? fixedURLString
+    }
+
     static func load(urlString: String) async throws -> MedalHallSnapshot {
-        guard let url = URL(string: urlString), !urlString.isEmpty else {
+        let normalized = normalizedURLString(urlString)
+        guard let url = URL(string: normalized), !normalized.isEmpty else {
             throw MedalHallError.invalidURL
         }
 
@@ -56,10 +75,8 @@ enum MedalHallService {
         }
 
         let dataObject = NodePortSupport.dictionary(root["data"])
-        let query = NodePortSupport.dictionary(root["query"])
-        let encUin = NodePortSupport.string(dataObject["EncUin"]).isEmpty
-            ? NodePortSupport.string(query["enc_uin"])
-            : NodePortSupport.string(dataObject["EncUin"])
+        // Queries must always use the fixed enc_uin, never the page value.
+        let encUin = fixedEncUin
         let currentID = NodePortSupport.int(dataObject["CurrTabID"])
         let tabList = NodePortSupport.array(dataObject["TabList"])
         let currentModules = parseModules(

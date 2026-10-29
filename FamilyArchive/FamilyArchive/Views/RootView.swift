@@ -70,27 +70,21 @@ struct RootView: View {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
                 FeedView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if !isBottomBarHidden {
-                            bottomBar
-                        }
+                        bottomBarInset
                     }
             }
 
             Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
                 VideoView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if !isBottomBarHidden {
-                            bottomBar
-                        }
+                        bottomBarInset
                     }
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
                 MusicRootView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if !isBottomBarHidden {
-                            bottomBar
-                        }
+                        bottomBarInset
                     }
             }
 
@@ -99,6 +93,7 @@ struct RootView: View {
             }
         }
         .tint(.blue)
+        .animation(.snappy, value: isBottomBarHidden)
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -152,12 +147,30 @@ struct RootView: View {
                 PlusActionsSheet(route: route) { action in
                     handleArchiveAction(action)
                 }
+                .navigationTransition(
+                    .zoom(
+                        sourceID: AccessoryTransition.plus,
+                        in: accessoryNamespace
+                    )
+                )
 
             case .feedComposer:
                 FeedComposerView()
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccessoryTransition.plus,
+                            in: accessoryNamespace
+                        )
+                    )
 
             case .videoComposer(let files):
                 VideoComposerView(files: files)
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: AccessoryTransition.plus,
+                            in: accessoryNamespace
+                        )
+                    )
             }
         }
         .fileImporter(
@@ -349,21 +362,6 @@ struct RootView: View {
             dateLabel: dateFilterStore.accessoryLabel,
             namespace: accessoryNamespace,
             searchText: currentSearchText,
-            isSearchFieldActive: router.selectedTab == .feed
-                && accessoryState.isFeedSearchActive,
-            focus: $accessorySearchFocused,
-            onSearchTap: {
-                guard router.selectedTab == .feed else {
-                    accessorySearchFocused = true
-                    return
-                }
-                withAnimation(.snappy) {
-                    accessoryState.isFeedSearchActive = true
-                }
-                DispatchQueue.main.async {
-                    accessorySearchFocused = true
-                }
-            },
             onSearchSubmit: {
                 accessorySearchFocused = false
             },
@@ -374,6 +372,16 @@ struct RootView: View {
                 handlePlusButtonTapped()
             }
         )
+    }
+
+    /// Animated inset so pushing a detail page slides the bar out instead of
+    /// snapping it away.
+    @ViewBuilder
+    private var bottomBarInset: some View {
+        if !isBottomBarHidden {
+            bottomBar
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
     }
 
     private var isBottomBarHidden: Bool {

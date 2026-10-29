@@ -18,6 +18,11 @@ struct BadgeSkin: Identifiable, Hashable {
 }
 
 enum BadgeSkinService {
+    /// Node parity: one request may cover at most 500 sequence numbers and at
+    /// most 10 requests run concurrently.
+    static let maxRangeLength = 500
+    static let maxConcurrentRequests = 10
+
     private static let medalID = "3069960"
     private static let userAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
 
@@ -61,6 +66,14 @@ enum BadgeSkinService {
         )
     }
 
+    /// Normalizes the sequence window exactly like the original Node page:
+    /// start/end are ordered, clamped to >= 1 and capped at 500 entries.
+    static func querySequences(start: Int, end: Int) -> [Int] {
+        let lower = max(1, min(start, end))
+        let upper = max(lower, min(max(start, end), lower + maxRangeLength - 1))
+        return Array(lower...upper)
+    }
+
     static func fetchSkins(uin: String, sequences: [Int]) async -> [BadgeSkin] {
         guard !uin.isEmpty, !sequences.isEmpty else { return [] }
 
@@ -68,7 +81,7 @@ enum BadgeSkinService {
         await withTaskGroup(of: (Int, BadgeSkin?).self) { group in
             var iterator = sequences.makeIterator()
             var launched = 0
-            let limit = min(6, sequences.count)
+            let limit = min(maxConcurrentRequests, sequences.count)
 
             while launched < limit, let seq = iterator.next() {
                 group.addTask { (seq, await fetchSkin(uin: uin, sequence: seq)) }
@@ -88,6 +101,10 @@ enum BadgeSkinService {
     }
 
     static func fetchSkin(uin: String, sequence: Int) async -> BadgeSkin? {
+        await fetchSkinOnce(uin: uin, sequence: sequence, retries: 1)
+    }
+
+    private static func fetchSkinOnce(uin: String, sequence: Int, retries: Int) async -> BadgeSkin? {
         var components = URLComponents(
             string: "https://i2.y.qq.com/n3/medal_collection/pages/medal_collection_v3/skin_detail.html"
         )
@@ -95,7 +112,7 @@ enum BadgeSkinService {
             URLQueryItem(name: "_hidehd", value: "1"),
             URLQueryItem(name: "_fontscale", value: "1"),
             URLQueryItem(name: "skin_id", value: "\(medalID)-\(sequence)"),
-            URLQueryItem(name: "enc_uin", value: uin)
+            URLQueryItem(name: "enc_uin", value: uin.removingPercentEncoding ?? uin)
         ]
         guard let url = components?.url else { return nil }
 
@@ -108,6 +125,9 @@ enum BadgeSkinService {
               let http = response as? HTTPURLResponse,
               (200..<300).contains(http.statusCode),
               let html = String(data: data, encoding: .utf8) else {
+            if retries > 0 {
+                return await fetchSkinOnce(uin: uin, sequence: sequence, retries: retries - 1)
+            }
             return nil
         }
         return parse(html: html, sequence: sequence)

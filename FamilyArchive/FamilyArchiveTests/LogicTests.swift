@@ -494,3 +494,83 @@ final class RootTabTests: XCTestCase {
         XCTAssertEqual(RootTab.allCases.last, .more)
     }
 }
+
+final class MedalHallURLTests: XCTestCase {
+    func testFixedURLMatchesRequiredMedalURL() {
+        XCTAssertEqual(
+            MedalHallService.fixedURLString,
+            "https://i2.y.qq.com/n3/client/pages/medal_collection_new/index.html?_hidehd=1&_fontscale=1&_miniplayer=1&enc_uin=oKEkoiCFoKCAoz**&entry=profile&_button=1"
+        )
+        XCTAssertEqual(MedalHallService.fixedEncUin, "oKEkoiCFoKCAoz**")
+    }
+
+    func testNormalizedURLReplacesExistingEncUin() {
+        let source = "https://i2.y.qq.com/n3/client/pages/medal_collection_new/index.html?_hidehd=1&_fontscale=1&_miniplayer=1&enc_uin=someoneElse**&entry=profile&_button=1"
+        let normalized = MedalHallService.normalizedURLString(source)
+        XCTAssertTrue(normalized.contains("enc_uin=oKEkoiCFoKCAoz**"))
+        XCTAssertFalse(normalized.contains("someoneElse"))
+        XCTAssertTrue(normalized.contains("entry=profile"))
+        XCTAssertTrue(normalized.contains("_button=1"))
+    }
+
+    func testNormalizedURLAddsEncUinWhenMissing() {
+        let normalized = MedalHallService.normalizedURLString(
+            "https://i2.y.qq.com/n3/client/pages/medal_collection_new/index.html?entry=profile"
+        )
+        XCTAssertTrue(normalized.contains("enc_uin=oKEkoiCFoKCAoz**"))
+    }
+}
+
+final class BadgeSkinRangeTests: XCTestCase {
+    func testQuerySequencesOrdersAndCapsAtFiveHundred() {
+        let sequences = BadgeSkinService.querySequences(start: 300, end: 100)
+        XCTAssertEqual(sequences.first, 100)
+        XCTAssertEqual(sequences.last, 300)
+        XCTAssertEqual(sequences.count, 201)
+    }
+
+    func testQuerySequencesClampsToFiveHundredEntries() {
+        let sequences = BadgeSkinService.querySequences(start: 1, end: 900)
+        XCTAssertEqual(sequences.count, 500)
+        XCTAssertEqual(sequences.first, 1)
+        XCTAssertEqual(sequences.last, 500)
+    }
+
+    func testQuerySequencesClampsToPositiveNumbers() {
+        let sequences = BadgeSkinService.querySequences(start: -20, end: 5)
+        XCTAssertEqual(sequences.first, 1)
+        XCTAssertEqual(sequences.last, 5)
+    }
+}
+
+final class MusicQueryStoreTests: XCTestCase {
+    private func makeDefaults() -> UserDefaults {
+        let suite = "MusicQueryStoreTests-\(UUID().uuidString)"
+        return UserDefaults(suiteName: suite)!
+    }
+
+    func testSavedRecordsPersistAndFilterByKind() {
+        let defaults = makeDefaults()
+        let store = MusicQueryStore(defaults: defaults)
+        store.save(
+            kind: MusicQueryRecord.badgeKind,
+            accountName: "jay",
+            encUin: "jay**",
+            summary: "皮肤 3 个"
+        )
+        store.save(
+            kind: MusicQueryRecord.medalKind,
+            accountName: "jay",
+            encUin: MedalHallService.fixedEncUin,
+            summary: "分类 2 个"
+        )
+
+        XCTAssertEqual(store.records(for: MusicQueryRecord.badgeKind).count, 1)
+        XCTAssertEqual(store.records(for: MusicQueryRecord.medalKind).count, 1)
+        XCTAssertEqual(store.records(for: MusicQueryRecord.badgeKind).first?.summary, "皮肤 3 个")
+
+        let reloaded = MusicQueryStore(defaults: defaults)
+        XCTAssertEqual(reloaded.records.count, 2)
+        XCTAssertEqual(reloaded.records.first?.kind, MusicQueryRecord.medalKind)
+    }
+}

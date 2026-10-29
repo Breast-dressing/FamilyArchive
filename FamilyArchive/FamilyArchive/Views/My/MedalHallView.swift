@@ -1,13 +1,20 @@
+import SwiftData
 import SwiftUI
 
 struct MedalHallView: View {
-    @State private var urlString =
-        "https://i2.y.qq.com/n3/client/pages/medal_collection_new/index.html?_hidehd=1&_fontscale=1&_miniplayer=1&enc_uin=oKEkoiCFoKCAoz**&entry=profile&_button=1"
+    @Query(sort: \Account.createdAt, order: .reverse) private var accounts: [Account]
+
+    @State private var queryStore = MusicQueryStore()
+    @State private var urlString = MedalHallService.fixedURLString
     @State private var snapshot: MedalHallSnapshot?
     @State private var selectedTab = 0
     @State private var isLoading = false
     @State private var errorMessage = ""
     @State private var selectedModule: MedalModule?
+
+    private var musicAccounts: [Account] {
+        accounts.filter { $0.scope == AccountScope.music.rawValue }
+    }
 
     private var modules: [MedalModule] {
         guard let snapshot, snapshot.tabs.indices.contains(selectedTab) else { return [] }
@@ -64,6 +71,8 @@ struct MedalHallView: View {
                     )
                     .padding(.vertical, 30)
                 }
+
+                savedHistory
             }
             .padding(.vertical, 12)
         }
@@ -74,6 +83,41 @@ struct MedalHallView: View {
         .toolbar(.hidden, for: .tabBar)
         .sheet(item: $selectedModule) { module in
             MedalModuleDetailView(module: module)
+        }
+    }
+
+    @ViewBuilder
+    private var savedHistory: some View {
+        let records = Array(queryStore.records(for: MusicQueryRecord.medalKind).prefix(5))
+        if !records.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("已保存查询")
+                    .font(.headline)
+
+                ForEach(records) { record in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "checkmark.seal")
+                            .foregroundStyle(.green)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(record.accountName)
+                                .font(.subheadline.bold())
+                            Text(record.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(record.date, format: .dateTime.month().day().hour().minute())
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(16)
+            .background(
+                Color(uiColor: .secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .padding(.horizontal, 16)
         }
     }
 
@@ -89,13 +133,24 @@ struct MedalHallView: View {
                 .autocorrectionDisabled()
 
             Button {
-                Task { await load() }
+                Task { await load(accountName: nil) }
             } label: {
                 Text("开始解析")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .disabled(isLoading || urlString.isEmpty)
+
+            if !musicAccounts.isEmpty {
+                Button {
+                    Task { await loadAllAccounts() }
+                } label: {
+                    Text("查询全部音乐账号并保存")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoading)
+            }
         }
         .padding(16)
         .background(
@@ -168,15 +223,55 @@ struct MedalHallView: View {
         }
     }
 
-    private func load() async {
+    private func load(accountName: String?) async {
         isLoading = true
         errorMessage = ""
         snapshot = nil
         selectedTab = 0
         do {
-            snapshot = try await MedalHallService.load(urlString: urlString)
+            // The service always overrides enc_uin with the fixed value.
+            let loaded = try await MedalHallService.load(urlString: urlString)
+            snapshot = loaded
+            if let accountName {
+                queryStore.save(
+                    kind: MusicQueryRecord.medalKind,
+                    accountName: accountName,
+                    encUin: MedalHallService.fixedEncUin,
+                    summary: "分类 \(loaded.tabs.count) 个，模块 \(loaded.tabs.reduce(0) { $0 + $1.modules.count }) 个"
+                )
+            }
         } catch {
             errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    private func loadAllAccounts() async {
+        isLoading = true
+        errorMessage = ""
+        snapshot = nil
+        selectedTab = 0
+        var savedCount = 0
+        var lastError: String?
+
+        for account in musicAccounts {
+            do {
+                let loaded = try await MedalHallService.load(urlString: urlString)
+                snapshot = loaded
+                savedCount += 1
+                queryStore.save(
+                    kind: MusicQueryRecord.medalKind,
+                    accountName: account.username,
+                    encUin: MedalHallService.fixedEncUin,
+                    summary: "分类 \(loaded.tabs.count) 个，模块 \(loaded.tabs.reduce(0) { $0 + $1.modules.count }) 个"
+                )
+            } catch {
+                lastError = error.localizedDescription
+            }
+        }
+
+        if savedCount == 0 {
+            errorMessage = lastError ?? "所有音乐账号都没有查询到勋章数据。"
         }
         isLoading = false
     }

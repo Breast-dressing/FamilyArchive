@@ -10,6 +10,7 @@ struct AccountsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Account.createdAt, order: .reverse) private var accounts: [Account]
+    @Query(sort: \FamilyMember.name) private var members: [FamilyMember]
 
     @State private var draft = AccountDraft()
     @State private var avatarItem: PhotosPickerItem?
@@ -33,6 +34,30 @@ struct AccountsView: View {
                     Section("已添加账号") {
                         ForEach(filteredAccounts) { account in
                             accountRow(account)
+                        }
+                    }
+                }
+
+                if scope == .music, !members.isEmpty {
+                    Section("从家族成员快速添加") {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(members) { member in
+                                    Button {
+                                        quickAdd(member)
+                                    } label: {
+                                        VStack(spacing: 6) {
+                                            RemoteAvatarView(urlString: member.avatarURL, size: 46)
+                                            Text(member.name)
+                                                .font(.caption2)
+                                                .lineLimit(1)
+                                                .frame(maxWidth: 64)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
                 }
@@ -145,6 +170,37 @@ struct AccountsView: View {
         Task { @MainActor in
             let data = try? await item.loadTransferable(type: Data.self)
             assign(data)
+        }
+    }
+
+    /// One-tap add for a music account taken straight from the stored family
+    /// members. The member avatar is reused as the account avatar.
+    private func quickAdd(_ member: FamilyMember) {
+        let account = Account(
+            username: member.name,
+            platform: "QQ音乐",
+            scope: scope.rawValue,
+            avatarData: nil,
+            platformLogoData: nil
+        )
+        modelContext.insert(account)
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.delete(account)
+            errorMessage = "保存失败：\(error.localizedDescription)"
+            showError = true
+            return
+        }
+        successMessage = "已从家族成员添加：\(member.name)"
+
+        guard let url = URL(string: member.avatarURL), !member.avatarURL.isEmpty else {
+            return
+        }
+        Task { @MainActor in
+            guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+            account.avatarData = data
+            try? modelContext.save()
         }
     }
 
