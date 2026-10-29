@@ -75,7 +75,6 @@ struct MedalHallView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("勋章")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 if tabs.count > 1 {

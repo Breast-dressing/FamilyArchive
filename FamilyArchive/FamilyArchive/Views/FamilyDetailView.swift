@@ -68,7 +68,6 @@ struct FamilyDetailView: View {
         }
         .navigationTitle(family?.name ?? "家族")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .background(
             FamilySharePresenter(payload: $sharePayload) {
                 sharePayload = nil

@@ -53,7 +53,6 @@ struct LyricCardsView: View {
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .navigationTitle("卡牌")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

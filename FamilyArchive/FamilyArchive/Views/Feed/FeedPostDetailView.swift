@@ -45,7 +45,6 @@ struct FeedPostDetailView: View {
         .background(Color(uiColor: .systemGroupedBackground))
         .navigationTitle("动态详情")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .onAppear {
             router.isFeedDetailActive = true
         }

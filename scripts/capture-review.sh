@@ -78,7 +78,6 @@ xcrun simctl install "$UDID" "$APP"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 
 rm -f "$ROOT"/*.png
-rm -f "$ROOT/bar_diag.txt"
 
 CONTAINER="$(xcrun simctl get_app_container "$UDID" "$BUNDLE_ID" data)"
 READY_FILE="$CONTAINER/Documents/UIPreviewReady"
@@ -127,19 +126,15 @@ launch "Lyric cards" -UIPreviewCards
 sleep 1
 shot cards_ui.png
 
-# Secondary pages: the native tab bar hides, and the floating bar follows the
-# freed safe area down to the bottom of the screen instead of leaving with it.
-launch "Family detail (tab bar hidden)" -UIPreviewFamily
+# Secondary pages: both the native tab bar and the floating bar stay on screen.
+launch "Family detail (both bars visible)" -UIPreviewFamily
 shot family_detail_ui.png
 
-launch "Member detail (tab bar hidden)" -UIPreviewMember
+launch "Member detail (both bars visible)" -UIPreviewMember
 shot member_detail_ui.png
 
-# Feed toolbar: search capsule + date circle + plus circle. The diag dump lets a
-# misplaced bar be explained by the measured geometry instead of a guess.
-launch "Feed toolbar" -UIPreviewFeed -UIPreviewChromeDiag
-rm -f "$ROOT/bar_diag.txt"
-cp "$CONTAINER/Documents/BottomChromeDiag.txt" "$ROOT/bar_diag.txt" 2>/dev/null || true
+# Feed toolbar: search capsule + date circle + plus circle.
+launch "Feed toolbar" -UIPreviewFeed
 shot feed_tab_ui.png
 
 # Feed search: in-place long search bar + date icon + plus.
@@ -155,13 +150,6 @@ shot video_tab_ui.png
 
 launch "More (detached tab, no toolbar)" -UIPreviewMore
 shot more_tab_ui.png
-
-# Floating bar exit: the review curve is stretched to 3s so two stills land
-# between the end states. The bar must be lower and fainter in the second one —
-# identical frames would mean it jumped instead of travelling.
-launch "Floating bar exit mid-flight" -UIPreviewBarExit
-shot bar_exit_a_ui.png
-shot bar_exit_b_ui.png
 
 # Date filter and plus use the same sheet API and animation.
 launch "Date filter sheet" -UIPreviewDateSheet

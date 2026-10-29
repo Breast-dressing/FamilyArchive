@@ -71,7 +71,6 @@ struct FansSkinsView: View {
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
         .navigationTitle("乐迷")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .sheet(item: $selectedSkin) { record in
             BadgeSkinDetailView(record: record)
         }

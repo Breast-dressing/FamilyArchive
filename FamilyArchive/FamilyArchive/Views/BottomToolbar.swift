@@ -38,44 +38,6 @@ enum BottomToolbarLayout {
     /// as one system.
     static let controlSize: CGFloat = 44
 
-    // MARK: - Presence
-
-    /// 更多 has no 搜索 / 日期筛选 / ＋, so the floating bar leaves that page.
-    /// Every other tab keeps it.
-    static func isVisible(for tab: RootTab) -> Bool {
-        tab != .more
-    }
-
-    /// How far the bar travels on its way out. It has to clear its own height and
-    /// sink behind the tab bar; the space the bar reserves in the safe area does
-    /// not move, so nothing else on the page shifts while it leaves.
-    static let exitTravel: CGFloat = 96
-
-    /// The spring a tab change already uses, so the bar starts and settles
-    /// together with the tab bar instead of running a curve of its own.
-    static let exitAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
-
-    /// The bar's presence as one continuous number: 1 fully on screen, 0 gone.
-    ///
-    /// Offset and opacity are both derived from it, so they can never disagree,
-    /// and because the value is animated (never inserted or removed) a reversal
-    /// mid-flight retargets from wherever the bar currently is instead of
-    /// replaying a fixed transition from the start.
-    static func progress(forVisible visible: Bool) -> Double {
-        visible ? 1 : 0
-    }
-
-    static func offset(progress: Double) -> CGFloat {
-        (1 - clamped(progress)) * exitTravel
-    }
-
-    static func opacity(progress: Double) -> Double {
-        clamped(progress)
-    }
-
-    private static func clamped(_ progress: Double) -> Double {
-        min(max(progress, 0), 1)
-    }
 }
 
 /// Custom bottom toolbar that replaces the previous detached "＋" tab and the

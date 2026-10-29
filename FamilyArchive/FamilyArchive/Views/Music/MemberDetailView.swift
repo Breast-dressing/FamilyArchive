@@ -84,7 +84,6 @@ struct MemberDetailView: View {
         }
         .navigationTitle(member?.name ?? "成员")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
     }
 
     private func detailList(member: FamilyMember) -> some View {

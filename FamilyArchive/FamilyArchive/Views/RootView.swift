@@ -46,7 +46,6 @@ struct AppMessage: Identifiable {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var router = AppRouter()
     @State private var pendingImports = PendingImportStore()
     @State private var dateFilterStore = DateFilterStore()
@@ -59,17 +58,6 @@ struct RootView: View {
     @State private var message: AppMessage?
 
     @State private var activeSheet: RootSheet?
-    /// 1 = floating bar fully on screen, 0 = gone. One continuous number, so the
-    /// exit can be interrupted and reversed at any point.
-    @State private var barProgress: Double = 1
-    /// How far a tab's page is inset at the bottom: the tab bar **and** the home
-    /// indicator. Measured on the page, because the `TabView`'s own safe area does
-    /// not describe the tab bar it draws.
-    @State private var tabSafeBottom: CGFloat = 0
-    /// The window's bottom inset (the home indicator alone), used to separate the
-    /// tab bar from the home indicator inside `tabSafeBottom`.
-    @State private var homeIndicatorInset: CGFloat = 0
-    @State private var hasMeasuredBottomChrome = false
     @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
@@ -80,30 +68,34 @@ struct RootView: View {
     var body: some View {
         TabView(selection: $router.selectedTab) {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
-                measuredTab(.feed) { FeedView() }
+                FeedView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        bottomBar
+                    }
             }
 
             Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
-                measuredTab(.video) { VideoView() }
+                VideoView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        bottomBar
+                    }
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
-                measuredTab(.music) { MusicRootView() }
+                MusicRootView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        bottomBar
+                    }
             }
 
             Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
                 MoreView()
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        bottomBar
+                    }
             }
         }
         .tint(.blue)
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            // The tab bar is chrome drawn by the `TabView`, so a plain inset lands
-            // on top of it. `bottomBarClearance` lifts the bar onto the band just
-            // above the tab bar.
-            floatingBar
-                .padding(.bottom, bottomBarClearance)
-                .opacity(hasMeasuredBottomChrome ? 1 : 0)
-        }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -116,7 +108,6 @@ struct RootView: View {
                 accessoryState.isFeedSearchActive = false
                 accessoryState.feedSearchText = ""
             }
-            animateBar(to: BottomToolbarLayout.isVisible(for: newTab))
         }
         .onChange(of: accessorySearchFocused) { _, isFocused in
             guard !isFocused, accessoryState.isFeedSearchActive else { return }
@@ -339,14 +330,6 @@ struct RootView: View {
             }
         }
 
-        // Leaves 动态 for 更多 on the slow review curve so the capture script can
-        // screenshot the bar between the two end states.
-        if arguments.contains("-UIPreviewBarExit") {
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.2))
-                router.selectedTab = .more
-            }
-        }
     }
     #endif
 
@@ -412,112 +395,6 @@ struct RootView: View {
         )
     }
 
-    /// The floating bar sits in the safe area above the native tab bar and is
-    /// mounted once for the whole `TabView`.
-    ///
-    /// A per-tab `safeAreaInset` is torn down by the tab switch itself, so the
-    /// old `if` + `.transition` exit could never actually be seen — the view it
-    /// animated was already gone. Mounting the bar once keeps it alive across the
-    /// switch, and its presence is a single continuous number (`barProgress`):
-    /// offset and opacity are derived from it and never inserted or removed, so a
-    /// reversal mid-flight retargets from where the bar is right now.
-    private var floatingBar: some View {
-        bottomBar
-            .offset(y: BottomToolbarLayout.offset(progress: barProgress))
-            .opacity(BottomToolbarLayout.opacity(progress: barProgress))
-            .allowsHitTesting(barProgress > 0.5)
-            .accessibilityHidden(barProgress < 0.5)
-    }
-
-    /// How far the bar has to clear the bottom edge to sit above the tab bar.
-    ///
-    /// A tab's page is inset by the tab bar **and** the home indicator, while the
-    /// window is inset by the home indicator alone; the difference is the tab bar.
-    /// The page's value is measured once and then kept, so the bar does not shift
-    /// when the tab bar hides on a secondary page — there it stays on the same band
-    /// instead of jumping while the push transition is running.
-    private var bottomBarClearance: CGFloat {
-        max(0, tabSafeBottom - homeIndicatorInset)
-    }
-
-    /// Reports how deep a tab's page is inset, and takes the window's own inset
-    /// once, so the clearance above needs no hard-coded heights.
-    private func measuredTab<Content: View>(
-        _ tab: RootTab,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        content()
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.safeAreaInsets.bottom
-            } action: { inset in
-                guard router.selectedTab == tab, inset > 0,
-                      !hasMeasuredBottomChrome else { return }
-                tabSafeBottom = inset
-                homeIndicatorInset = windowSafeAreaBottom
-                hasMeasuredBottomChrome = true
-                #if DEBUG
-                writeBottomChromeDiag("tab-\(tab.rawValue)")
-                #endif
-            }
-    }
-
-    /// The window's bottom inset: the home indicator, without the app's own chrome.
-    private var windowSafeAreaBottom: CGFloat {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first(where: \.isKeyWindow)?
-            .safeAreaInsets.bottom ?? 0
-    }
-
-    #if DEBUG
-    /// Debug-only diagnostics for the capture run: the review job copies this
-    /// file out with the screenshots, so a wrong placement is explained by real
-    /// numbers instead of a guess.
-    private func writeBottomChromeDiag(_ label: String) {
-        guard UIPreviewSeed.wantsChromeDiag,
-              let documents = FileManager.default.urls(
-                  for: .documentDirectory,
-                  in: .userDomainMask
-              ).first else { return }
-        let text = """
-        at=\(label)
-        tabSafeBottom=\(tabSafeBottom)
-        homeIndicatorInset=\(homeIndicatorInset)
-        windowSafeAreaBottom=\(windowSafeAreaBottom)
-        clearance=\(bottomBarClearance)
-        """
-        try? Data(text.utf8).write(
-            to: documents.appendingPathComponent("BottomChromeDiag.txt")
-        )
-    }
-    #endif
-
-    /// The curve the bar leaves and returns on.
-    private var barAnimation: Animation {
-        #if DEBUG
-        // `-UIPreviewBarExit` runs the same exit slowly so a screenshot series
-        // can prove the bar travels instead of jumping to the end state.
-        if UIPreviewSeed.usesSlowBarCurve {
-            return .easeInOut(duration: 3)
-        }
-        #endif
-        return reduceMotion ? .easeInOut(duration: 0.18) : BottomToolbarLayout.exitAnimation
-    }
-
-    /// A tab switch arrives in a transaction that has animation disabled, so an
-    /// implicit `.animation(_:value:)` never played: the bar jumped straight to
-    /// its end position. The exit/entry therefore runs as an explicit animation,
-    /// which also gives SwiftUI a live target to retarget when the user switches
-    /// back before the bar has finished leaving.
-    private func animateBar(to visible: Bool) {
-        withAnimation(barAnimation) {
-            barProgress = BottomToolbarLayout.progress(forVisible: visible)
-        }
-    }
-
-    /// 二级页面只隐藏系统 TabBar，悬浮工具栏跟随安全区落到屏幕底部继续显示；
-    /// 只有 更多 不需要工具栏，才真正退场。
     private func handlePlusButtonTapped() {
         switch router.selectedTab {
         case .music:

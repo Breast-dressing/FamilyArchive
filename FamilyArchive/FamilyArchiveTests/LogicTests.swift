@@ -481,53 +481,6 @@ final class BottomToolbarLayoutTests: XCTestCase {
             )
         }
     }
-
-    /// 更多 没有搜索 / 日期筛选 / ＋，只有它让悬浮栏退场；退场是连续 offset/opacity，
-    /// 所以半路切回来能从当前位置反向，而不是重放固定的 spring。
-    func testBarLeavesOnlyOnTheMoreTab() {
-        for tab in RootTab.allCases {
-            XCTAssertEqual(
-                BottomToolbarLayout.isVisible(for: tab),
-                tab != .more,
-                "\(tab.title) 的悬浮栏显示状态被改动"
-            )
-        }
-    }
-
-    /// 退场必须是一个连续数：0…1 之间任意进度都要落在起止状态之间，否则中途
-    /// 反向时只能重放固定动画（闪现 / 瞬移）。
-    func testPresenceIsOneContinuousNumber() {
-        XCTAssertEqual(BottomToolbarLayout.progress(forVisible: true), 1)
-        XCTAssertEqual(BottomToolbarLayout.progress(forVisible: false), 0)
-
-        XCTAssertEqual(BottomToolbarLayout.offset(progress: 1), 0)
-        XCTAssertEqual(BottomToolbarLayout.offset(progress: 0), BottomToolbarLayout.exitTravel)
-        XCTAssertEqual(
-            BottomToolbarLayout.offset(progress: 0.5),
-            BottomToolbarLayout.exitTravel / 2
-        )
-        XCTAssertEqual(BottomToolbarLayout.opacity(progress: 1), 1)
-        XCTAssertEqual(BottomToolbarLayout.opacity(progress: 0.5), 0.5)
-        XCTAssertEqual(BottomToolbarLayout.opacity(progress: 0), 0)
-
-        XCTAssertGreaterThan(
-            BottomToolbarLayout.exitTravel,
-            BottomToolbarLayout.controlSize,
-            "退场行程要够高才会整条离开屏幕"
-        )
-    }
-
-    func testInterruptedProgressNeverLeavesTheEndpoints() {
-        // 半路反向只改变目标值，当前位置由中间进度决定，必须仍在起止之间。
-        for progress in [-0.2, 0.0, 0.25, 0.4, 0.75, 1.0, 1.3] {
-            let offset = BottomToolbarLayout.offset(progress: progress)
-            let opacity = BottomToolbarLayout.opacity(progress: progress)
-            XCTAssertGreaterThanOrEqual(offset, 0, "progress \(progress) 越过起点")
-            XCTAssertLessThanOrEqual(offset, BottomToolbarLayout.exitTravel, "progress \(progress) 越过终点")
-            XCTAssertGreaterThanOrEqual(opacity, 0)
-            XCTAssertLessThanOrEqual(opacity, 1)
-        }
-    }
 }
 
 final class RootTabTests: XCTestCase {
