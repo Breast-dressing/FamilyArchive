@@ -62,13 +62,13 @@ struct RootView: View {
     /// 1 = floating bar fully on screen, 0 = gone. One continuous number, so the
     /// exit can be interrupted and reversed at any point.
     @State private var barProgress: Double = 1
-    /// Where the `TabView` itself ends, in global coordinates.
-    @State private var windowFrame: CGRect = .zero
-    /// Where a tab's page ends. The gap between the two is the tab bar band: the
-    /// `TabView` draws its tab bar as chrome, so neither safe area contains it.
-    @State private var tabContentFrame: CGRect = .zero
+    /// How far a tab's page is inset at the bottom: the tab bar **and** the home
+    /// indicator. Measured on the page, because the `TabView`'s own safe area does
+    /// not describe the tab bar it draws.
     @State private var tabSafeBottom: CGFloat = 0
-    @State private var windowSafeBottom: CGFloat = 0
+    /// The window's bottom inset (the home indicator alone), used to separate the
+    /// tab bar from the home indicator inside `tabSafeBottom`.
+    @State private var homeIndicatorInset: CGFloat = 0
     @State private var hasMeasuredBottomChrome = false
     @FocusState private var accessorySearchFocused: Bool
 
@@ -96,23 +96,10 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .onGeometryChange(for: CGRect.self) { proxy in
-            proxy.frame(in: .global)
-        } action: { frame in
-            windowFrame = frame
-            #if DEBUG
-            writeBottomChromeDiag("window")
-            #endif
-        }
-        .onGeometryChange(for: CGFloat.self) { proxy in
-            proxy.safeAreaInsets.bottom
-        } action: { inset in
-            windowSafeBottom = inset
-        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // The tab bar is chrome drawn by the `TabView`, not part of its safe
-            // area, so a plain inset lands on top of the tab bar. The measured
-            // clearance puts the bar back on the band right above it.
+            // The tab bar is chrome drawn by the `TabView`, so a plain inset lands
+            // on top of it. `bottomBarClearance` lifts the bar onto the band just
+            // above the tab bar.
             floatingBar
                 .padding(.bottom, bottomBarClearance)
                 .opacity(hasMeasuredBottomChrome ? 1 : 0)
@@ -442,45 +429,51 @@ struct RootView: View {
             .accessibilityHidden(barProgress < 0.5)
     }
 
-    /// How far the bar has to clear the bottom edge to sit above the tab bar: the
-    /// gap between where the `TabView` ends and where a tab's page ends. The tab
-    /// bar lives in that gap, in neither safe area.
+    /// How far the bar has to clear the bottom edge to sit above the tab bar.
     ///
-    /// Measured once and then kept, so the bar does not shift when the tab bar
-    /// hides on a secondary page — there it stays on the same band instead of
-    /// jumping while the push transition is running.
+    /// A tab's page is inset by the tab bar **and** the home indicator, while the
+    /// window is inset by the home indicator alone; the difference is the tab bar.
+    /// The page's value is measured once and then kept, so the bar does not shift
+    /// when the tab bar hides on a secondary page — there it stays on the same band
+    /// instead of jumping while the push transition is running.
     private var bottomBarClearance: CGFloat {
-        max(0, windowFrame.maxY - tabContentFrame.maxY)
+        max(0, tabSafeBottom - homeIndicatorInset)
     }
 
-    /// Reports where a tab's page ends so the shared bar can be placed on the band
-    /// right above the tab bar without hard-coding a height.
+    /// Reports how deep a tab's page is inset, and takes the window's own inset
+    /// once, so the clearance above needs no hard-coded heights.
     private func measuredTab<Content: View>(
         _ tab: RootTab,
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
-            .onGeometryChange(for: CGRect.self) { proxy in
-                proxy.frame(in: .global)
-            } action: { frame in
-                guard router.selectedTab == tab, !hasMeasuredBottomChrome else { return }
-                tabContentFrame = frame
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.safeAreaInsets.bottom
+            } action: { inset in
+                guard router.selectedTab == tab, inset > 0,
+                      !hasMeasuredBottomChrome else { return }
+                tabSafeBottom = inset
+                homeIndicatorInset = windowSafeAreaBottom
                 hasMeasuredBottomChrome = true
                 #if DEBUG
                 writeBottomChromeDiag("tab-\(tab.rawValue)")
                 #endif
             }
-            .onGeometryChange(for: CGFloat.self) { proxy in
-                proxy.safeAreaInsets.bottom
-            } action: { inset in
-                tabSafeBottom = inset
-            }
+    }
+
+    /// The window's bottom inset: the home indicator, without the app's own chrome.
+    private var windowSafeAreaBottom: CGFloat {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow)?
+            .safeAreaInsets.bottom ?? 0
     }
 
     #if DEBUG
     /// Debug-only diagnostics for the capture run: the review job copies this
     /// file out with the screenshots, so a wrong placement is explained by real
-    /// numbers instead of guesses.
+    /// numbers instead of a guess.
     private func writeBottomChromeDiag(_ label: String) {
         guard UIPreviewSeed.wantsChromeDiag,
               let documents = FileManager.default.urls(
@@ -489,10 +482,9 @@ struct RootView: View {
               ).first else { return }
         let text = """
         at=\(label)
-        windowFrame=\(windowFrame)
-        tabContentFrame=\(tabContentFrame)
-        windowSafeBottom=\(windowSafeBottom)
         tabSafeBottom=\(tabSafeBottom)
+        homeIndicatorInset=\(homeIndicatorInset)
+        windowSafeAreaBottom=\(windowSafeAreaBottom)
         clearance=\(bottomBarClearance)
         """
         try? Data(text.utf8).write(
