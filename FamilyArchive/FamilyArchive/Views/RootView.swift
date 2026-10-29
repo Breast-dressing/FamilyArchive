@@ -59,6 +59,9 @@ struct RootView: View {
     @State private var message: AppMessage?
 
     @State private var activeSheet: RootSheet?
+    /// 1 = floating bar fully on screen, 0 = gone. One continuous number, so the
+    /// exit can be interrupted and reversed at any point.
+    @State private var barProgress: Double = 1
     @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
@@ -100,6 +103,7 @@ struct RootView: View {
                 accessoryState.isFeedSearchActive = false
                 accessoryState.feedSearchText = ""
             }
+            animateBar(to: BottomToolbarLayout.isVisible(for: newTab))
         }
         .onChange(of: accessorySearchFocused) { _, isFocused in
             guard !isFocused, accessoryState.isFeedSearchActive else { return }
@@ -321,6 +325,15 @@ struct RootView: View {
                 activeSheet = .pendingFiles
             }
         }
+
+        // Leaves 动态 for 更多 on the slow review curve so the capture script can
+        // screenshot the bar between the two end states.
+        if arguments.contains("-UIPreviewBarExit") {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                router.selectedTab = .more
+            }
+        }
     }
     #endif
 
@@ -391,31 +404,43 @@ struct RootView: View {
     ///
     /// A per-tab `safeAreaInset` is torn down by the tab switch itself, so the
     /// old `if` + `.transition` exit could never actually be seen — the view it
-    /// animated was already gone — and nothing could interrupt it. Mounting the
-    /// bar once keeps it alive across the switch, so its exit is a continuous
-    /// offset/opacity the user can reverse at any point, and switching back
-    /// mid-flight resumes from the current position instead of replaying a fixed
-    /// spring from the start.
+    /// animated was already gone. Mounting the bar once keeps it alive across the
+    /// switch, and its presence is a single continuous number (`barProgress`):
+    /// offset and opacity are derived from it and never inserted or removed, so a
+    /// reversal mid-flight retargets from where the bar is right now.
     private var floatingBar: some View {
         bottomBar
-            .offset(y: BottomToolbarLayout.offset(forVisible: !isBottomBarHidden))
-            .opacity(BottomToolbarLayout.opacity(forVisible: !isBottomBarHidden))
-            .allowsHitTesting(!isBottomBarHidden)
-            .accessibilityHidden(isBottomBarHidden)
-            .animation(
-                reduceMotion
-                    ? .easeInOut(duration: 0.18)
-                    : BottomToolbarLayout.exitAnimation,
-                value: isBottomBarHidden
-            )
+            .offset(y: BottomToolbarLayout.offset(progress: barProgress))
+            .opacity(BottomToolbarLayout.opacity(progress: barProgress))
+            .allowsHitTesting(barProgress > 0.5)
+            .accessibilityHidden(barProgress < 0.5)
+    }
+
+    /// The curve the bar leaves and returns on.
+    private var barAnimation: Animation {
+        #if DEBUG
+        // `-UIPreviewBarExit` runs the same exit slowly so a screenshot series
+        // can prove the bar travels instead of jumping to the end state.
+        if UIPreviewSeed.usesSlowBarCurve {
+            return .easeInOut(duration: 3)
+        }
+        #endif
+        return reduceMotion ? .easeInOut(duration: 0.18) : BottomToolbarLayout.exitAnimation
+    }
+
+    /// A tab switch arrives in a transaction that has animation disabled, so an
+    /// implicit `.animation(_:value:)` never played: the bar jumped straight to
+    /// its end position. The exit/entry therefore runs as an explicit animation,
+    /// which also gives SwiftUI a live target to retarget when the user switches
+    /// back before the bar has finished leaving.
+    private func animateBar(to visible: Bool) {
+        withAnimation(barAnimation) {
+            barProgress = BottomToolbarLayout.progress(forVisible: visible)
+        }
     }
 
     /// 二级页面只隐藏系统 TabBar，悬浮工具栏跟随安全区落到屏幕底部继续显示；
     /// 只有 更多 不需要工具栏，才真正退场。
-    private var isBottomBarHidden: Bool {
-        !BottomToolbarLayout.isVisible(for: router.selectedTab)
-    }
-
     private func handlePlusButtonTapped() {
         switch router.selectedTab {
         case .music:

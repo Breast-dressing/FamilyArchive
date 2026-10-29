@@ -37,6 +37,8 @@ jobs:
             feed_search_focused_ui.png
             video_tab_ui.png
             more_tab_ui.png
+            bar_exit_a_ui.png
+            bar_exit_b_ui.png
             date_filter_sheet_ui.png
             feed_plus_sheet_ui.png
             accounts_sheet_ui.png

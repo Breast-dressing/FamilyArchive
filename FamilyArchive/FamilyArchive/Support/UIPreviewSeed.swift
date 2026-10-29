@@ -85,6 +85,12 @@ enum UIPreviewSeed {
         ProcessInfo.processInfo.arguments.contains("-UIPreviewAccounts")
     }
 
+    /// Debug-only: stretch the floating bar's exit so a screenshot series can
+    /// catch it mid-travel instead of only at the two end states.
+    static var usesSlowBarCurve: Bool {
+        ProcessInfo.processInfo.arguments.contains("-UIPreviewBarExit")
+    }
+
     /// Debug-only pending import used by the UI review route to exercise the
     /// "待保存文件" sheet without a real HAR selection.
     static func pendingOutcome() -> HARImportOutcome {

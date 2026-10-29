@@ -152,6 +152,13 @@ shot video_tab_ui.png
 launch "More (detached tab, no toolbar)" -UIPreviewMore
 shot more_tab_ui.png
 
+# Floating bar exit: the review curve is stretched to 3s so two stills land
+# between the end states. The bar must be lower and fainter in the second one —
+# identical frames would mean it jumped instead of travelling.
+launch "Floating bar exit mid-flight" -UIPreviewBarExit
+shot bar_exit_a_ui.png
+shot bar_exit_b_ui.png
+
 # Date filter and plus use the same sheet API and animation.
 launch "Date filter sheet" -UIPreviewDateSheet
 sleep 3

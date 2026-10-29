@@ -53,17 +53,28 @@ enum BottomToolbarLayout {
 
     /// The spring a tab change already uses, so the bar starts and settles
     /// together with the tab bar instead of running a curve of its own.
-    static let exitAnimation: Animation = .spring(response: 0.34, dampingFraction: 0.86)
+    static let exitAnimation: Animation = .spring(response: 0.42, dampingFraction: 0.86)
 
-    /// A plain 0…1 presence for the bar. Keeping the value continuous (rather
-    /// than inserting and removing the view) is what makes an interrupted exit —
-    /// switch back before it finishes — resume from where it is.
-    static func offset(forVisible visible: Bool) -> CGFloat {
-        visible ? 0 : exitTravel
+    /// The bar's presence as one continuous number: 1 fully on screen, 0 gone.
+    ///
+    /// Offset and opacity are both derived from it, so they can never disagree,
+    /// and because the value is animated (never inserted or removed) a reversal
+    /// mid-flight retargets from wherever the bar currently is instead of
+    /// replaying a fixed transition from the start.
+    static func progress(forVisible visible: Bool) -> Double {
+        visible ? 1 : 0
     }
 
-    static func opacity(forVisible visible: Bool) -> Double {
-        visible ? 1 : 0
+    static func offset(progress: Double) -> CGFloat {
+        (1 - clamped(progress)) * exitTravel
+    }
+
+    static func opacity(progress: Double) -> Double {
+        clamped(progress)
+    }
+
+    private static func clamped(_ progress: Double) -> Double {
+        min(max(progress, 0), 1)
     }
 }
 
