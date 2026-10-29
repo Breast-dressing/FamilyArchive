@@ -114,6 +114,7 @@ struct RootView: View {
             accessoryState.feedSearchText = ""
         }
         .sheet(item: $activeSheet) { sheet in
+            Group {
             switch sheet {
             case .dateFilter:
                 DateFilterPopover()
@@ -164,13 +165,14 @@ struct RootView: View {
 
             case .videoComposer(let files):
                 VideoComposerView(files: files)
-                    .navigationTransition(
-                        .zoom(
-                            sourceID: AccessoryTransition.plus,
-                            in: accessoryNamespace
-                        )
-                    )
             }
+            }
+            .navigationTransition(
+                .zoom(
+                    sourceID: zoomSourceID(for: sheet),
+                    in: accessoryNamespace
+                )
+            )
         }
         .fileImporter(
             isPresented: $isFilePickerPresented,
@@ -355,6 +357,17 @@ struct RootView: View {
     }
 
     @ViewBuilder
+    private func zoomSourceID(for sheet: RootSheet) -> String {
+        switch sheet {
+        case .dateFilter:
+            return AccessoryTransition.dateFilter
+        case .pendingFiles:
+            return AccessoryTransition.pendingFiles
+        default:
+            return AccessoryTransition.plus
+        }
+    }
+
     private var bottomBar: some View {
         BottomToolbar(
             tab: router.selectedTab,

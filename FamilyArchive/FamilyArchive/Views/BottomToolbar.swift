@@ -94,8 +94,8 @@ struct BottomToolbar: View {
             glassIcon("calendar.badge.clock")
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
         .matchedTransitionSource(id: AccessoryTransition.dateFilter, in: namespace)
+        .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel("日期筛选")
         .accessibilityValue(dateLabel)
     }
@@ -105,8 +105,8 @@ struct BottomToolbar: View {
             glassIcon("plus")
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
         .matchedTransitionSource(id: AccessoryTransition.plus, in: namespace)
+        .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel("添加")
     }
 
