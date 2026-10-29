@@ -93,7 +93,6 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .animation(.snappy, value: isBottomBarHidden)
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -374,14 +373,23 @@ struct RootView: View {
         )
     }
 
-    /// Animated inset so pushing a detail page slides the bar out instead of
-    /// snapping it away.
+    /// The floating bar shares the tab bar's downward exit: both slide off the
+    /// bottom edge together, then the system removes the tab bar. Returning
+    /// plays the same move in reverse.
     @ViewBuilder
     private var bottomBarInset: some View {
-        if !isBottomBarHidden {
-            bottomBar
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+        ZStack(alignment: .bottom) {
+            if !isBottomBarHidden {
+                bottomBar
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        )
+                    )
+            }
         }
+        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isBottomBarHidden)
     }
 
     private var isBottomBarHidden: Bool {

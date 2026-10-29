@@ -32,6 +32,11 @@ enum BottomToolbarLayout {
     /// Horizontal inset shared by the floating toolbar and the floating tab bar
     /// so both edges line up on the same vertical grid.
     static let horizontalInset: CGFloat = 24
+
+    /// The toolbar's controls use the same 44pt hit area as the circular
+    /// buttons in the page's NavigationBar, so the top and bottom chrome read
+    /// as one system.
+    static let controlSize: CGFloat = 44
 }
 
 /// Custom bottom toolbar that replaces the previous detached "＋" tab and the
@@ -75,7 +80,7 @@ struct BottomToolbar: View {
     /// The system search field keeps its intrinsic height, typography and
     /// glyphs; only the surrounding glass is ours.
     private var searchControl: some View {
-        NativeSearchBar(text: $searchText, onSubmit: onSearchSubmit)
+        ToolbarSearchField(text: $searchText, onSubmit: onSearchSubmit)
             .frame(maxWidth: .infinity)
             .glassEffect(.regular.interactive(), in: Capsule())
             .accessibilityLabel("搜索")
@@ -104,12 +109,13 @@ struct BottomToolbar: View {
         .accessibilityLabel("添加")
     }
 
+    /// 44pt square hit area with a 20pt glyph, matching NavigationBar buttons.
     private func glassIcon(_ systemImage: String) -> some View {
         Image(systemName: systemImage)
-            .font(.system(size: 21, weight: .medium))
+            .font(.system(size: 20, weight: .medium))
             .foregroundStyle(.primary)
-            .frame(width: 24, height: 24)
-            .padding(16)
+            .frame(width: 20, height: 20)
+            .padding(12)
             .contentShape(Circle())
     }
 }
