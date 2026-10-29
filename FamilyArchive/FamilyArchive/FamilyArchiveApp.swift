@@ -12,7 +12,10 @@ struct FamilyArchiveApp: App {
                 Account.self,
                 FeedPost.self,
                 VideoShow.self,
-                FamilyAvatarHistory.self
+                FamilyAvatarHistory.self,
+                BadgeSkinRecord.self,
+                BadgeQueryState.self,
+                MedalTabRecord.self
             )
         } catch {
             fatalError("Failed to create the SwiftData container: \(error)")

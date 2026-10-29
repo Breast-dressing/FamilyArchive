@@ -64,6 +64,10 @@ struct AccountsView: View {
 
                 Section("添加账号") {
                     TextField("账号", text: $draft.username)
+
+                    TextField("账号 ID (enc_uin)", text: $draft.encUin)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
@@ -178,6 +182,7 @@ struct AccountsView: View {
     private func quickAdd(_ member: FamilyMember) {
         let account = Account(
             username: member.name,
+            encUin: member.memberID,
             platform: "QQ音乐",
             scope: scope.rawValue,
             avatarData: nil,
@@ -205,7 +210,10 @@ struct AccountsView: View {
     }
 
     private func saveAccount() {
-        let issues = draft.validationIssues
+        var issues = draft.validationIssues
+        if scope == .music, draft.encUin.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            issues.append("请输入账号 ID（enc_uin）")
+        }
         guard issues.isEmpty else {
             errorMessage = issues.joined(separator: "\n")
             showError = true
@@ -214,6 +222,7 @@ struct AccountsView: View {
 
         let account = Account(
             username: draft.username.trimmingCharacters(in: .whitespacesAndNewlines),
+            encUin: draft.encUin.trimmingCharacters(in: .whitespacesAndNewlines),
             platform: draft.platform.rawValue,
             scope: scope.rawValue,
             avatarData: draft.avatarData,

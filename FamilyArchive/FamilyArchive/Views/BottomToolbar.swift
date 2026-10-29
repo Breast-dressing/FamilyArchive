@@ -31,7 +31,7 @@ enum BottomToolbarLayout {
 
     /// Horizontal inset shared by the floating toolbar and the floating tab bar
     /// so both edges line up on the same vertical grid.
-    static let horizontalInset: CGFloat = 24
+    static let horizontalInset: CGFloat = 21
 
     /// The toolbar's controls use the same 44pt hit area as the circular
     /// buttons in the page's NavigationBar, so the top and bottom chrome read

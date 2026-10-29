@@ -1,71 +1,69 @@
 import SwiftData
 import SwiftUI
 
+/// 乐迷：按账号 ID (enc_uin) 自动扫描勋章皮肤，按 CategID 分组，组名由用户命名。
 struct FansSkinsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Account.createdAt, order: .reverse) private var accounts: [Account]
+    @Query(sort: \BadgeSkinRecord.sequence) private var records: [BadgeSkinRecord]
+    @Query private var queryStates: [BadgeQueryState]
 
-    @State private var queryStore = MusicQueryStore()
     @State private var selectedAccountID: UUID?
-    @State private var encUin = ""
-    @State private var startSequence = 100
-    @State private var endSequence = 300
-    @State private var skins: [BadgeSkin] = []
-    @State private var isLoading = false
+    @State private var isScanning = false
     @State private var progressText = ""
     @State private var errorMessage = ""
-    @State private var selectedSkin: BadgeSkin?
-
-    private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12)
-    ]
+    @State private var groupNames: [String: String] = [:]
+    @State private var selectedSkin: BadgeSkinRecord?
 
     private var musicAccounts: [Account] {
-        accounts.filter { $0.scope == AccountScope.music.rawValue }
+        accounts.filter { $0.scope == AccountScope.music.rawValue && !$0.encUin.isEmpty }
+    }
+
+    private var selectedAccount: Account? {
+        if let selectedAccountID, let match = musicAccounts.first(where: { $0.id == selectedAccountID }) {
+            return match
+        }
+        return musicAccounts.first
+    }
+
+    private var visibleRecords: [BadgeSkinRecord] {
+        guard let encUin = selectedAccount?.encUin else { return [] }
+        return records.filter { $0.encUin == encUin }
+    }
+
+    private var groupedRecords: [(key: String, items: [BadgeSkinRecord])] {
+        Dictionary(grouping: visibleRecords, by: \.categKey)
+            .map { (key: $0.key, items: $0.value.sorted { $0.sequence < $1.sequence }) }
+            .sorted { $0.key < $1.key }
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                inputCard
+            VStack(alignment: .leading, spacing: 18) {
+                header
 
-                if isLoading {
-                    ProgressView(progressText.isEmpty ? "正在获取皮肤…" : progressText)
+                if isScanning {
+                    ProgressView(progressText.isEmpty ? "正在查询勋章皮肤…" : progressText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
                 } else if !errorMessage.isEmpty {
                     ContentUnavailableView(
-                        "获取失败",
+                        "查询失败",
                         systemImage: "exclamationmark.triangle",
                         description: Text(errorMessage)
                     )
-                } else if skins.isEmpty {
+                } else if groupedRecords.isEmpty {
                     ContentUnavailableView(
                         "暂无皮肤",
                         systemImage: "sparkles",
-                        description: Text("选择音乐账号或输入 enc_uin，然后查询勋章皮肤。")
+                        description: Text("请先在账号页添加带有 ID 的音乐账号。")
                     )
                     .padding(.vertical, 30)
                 } else {
-                    Text("皮肤 \(skins.count)")
-                        .font(.headline)
-                        .padding(.horizontal, 16)
-
-                    LazyVGrid(columns: columns, spacing: 12) {
-                        ForEach(skins) { skin in
-                            Button {
-                                selectedSkin = skin
-                            } label: {
-                                skinCard(skin)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                    ForEach(groupedRecords, id: \.key) { group in
+                        groupSection(group)
                     }
-                    .padding(.horizontal, 16)
                 }
-
-                savedHistory
             }
             .padding(.vertical, 12)
         }
@@ -74,70 +72,55 @@ struct FansSkinsView: View {
         .navigationTitle("乐迷")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
-        .sheet(item: $selectedSkin) { skin in
-            BadgeSkinDetailView(skin: skin)
+        .sheet(item: $selectedSkin) { record in
+            BadgeSkinDetailView(record: record)
         }
-        .onChange(of: selectedAccountID) { _, newValue in
-            guard let newValue,
-                  let account = musicAccounts.first(where: { $0.id == newValue }) else {
-                return
+        .task {
+            loadGroupNames()
+            if let account = selectedAccount {
+                await incrementalScan(for: account)
             }
-            encUin = account.username
         }
     }
 
-    private var inputCard: some View {
+    private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("勋章皮肤")
-                .font(.headline)
-
-            if !musicAccounts.isEmpty {
-                Picker("音乐账号", selection: $selectedAccountID) {
-                    Text("手动输入").tag(UUID?.none)
+            if musicAccounts.isEmpty {
+                Text("还没有音乐账号，请先在账号页添加。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("音乐账号", selection: Binding(
+                    get: { selectedAccount?.id },
+                    set: { newValue in
+                        selectedAccountID = newValue
+                        if let account = selectedAccount {
+                            Task { await incrementalScan(for: account) }
+                        }
+                    }
+                )) {
                     ForEach(musicAccounts) { account in
-                        Text(account.username).tag(Optional(account.id))
+                        Text("\(account.username) · \(account.encUin)").tag(Optional(account.id))
                     }
                 }
                 .pickerStyle(.menu)
-            }
 
-            TextField("enc_uin", text: $encUin)
-                .textFieldStyle(.roundedBorder)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-
-            HStack(spacing: 10) {
-                TextField("开始", value: $startSequence, format: .number)
-                    .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
-
-                Text("至")
-                    .foregroundStyle(.secondary)
-
-                TextField("结束", value: $endSequence, format: .number)
-                    .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
-            }
-            .font(.subheadline)
-
-            Button {
-                Task { await load(uin: encUin, summaryFor: nil) }
-            } label: {
-                Text("获取皮肤")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(isLoading || encUin.isEmpty)
-
-            if !musicAccounts.isEmpty {
-                Button {
-                    Task { await loadAllAccounts() }
-                } label: {
-                    Text("查询全部音乐账号并保存")
-                        .frame(maxWidth: .infinity)
+                HStack {
+                    Text("皮肤 \(visibleRecords.count) 个")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("全部账号查询") {
+                        Task { await scanAllAccounts(full: false) }
+                    }
+                    .font(.footnote)
+                    .disabled(isScanning)
+                    Button("重新扫描") {
+                        Task { await scanAllAccounts(full: true) }
+                    }
+                    .font(.footnote)
+                    .disabled(isScanning)
                 }
-                .buttonStyle(.bordered)
-                .disabled(isLoading)
             }
         }
         .padding(16)
@@ -148,149 +131,244 @@ struct FansSkinsView: View {
         .padding(.horizontal, 16)
     }
 
-    @ViewBuilder
-    private var savedHistory: some View {
-        let records = Array(queryStore.records(for: MusicQueryRecord.badgeKind).prefix(5))
-        if !records.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                Text("已保存查询")
-                    .font(.headline)
+    private func groupSection(_ group: (key: String, items: [BadgeSkinRecord])) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            TextField("分组名称", text: Binding(
+                get: { groupNames[group.key] ?? "" },
+                set: { newValue in
+                    groupNames[group.key] = newValue
+                    updateGroupName(newValue, for: group.key)
+                }
+            ))
+            .font(.headline)
+            .textFieldStyle(.plain)
 
-                ForEach(records) { record in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "checkmark.seal")
-                            .foregroundStyle(.green)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(record.accountName)
-                                .font(.subheadline.bold())
-                            Text(record.summary)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(record.date, format: .dateTime.month().day().hour().minute())
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ],
+                spacing: 10
+            ) {
+                ForEach(group.items) { record in
+                    Button {
+                        selectedSkin = record
+                    } label: {
+                        skinCard(record)
                     }
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(16)
-            .background(
-                Color(uiColor: .secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .padding(.horizontal, 16)
         }
+        .padding(14)
+        .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+        )
+        .padding(.horizontal, 16)
     }
 
-    private func skinCard(_ skin: BadgeSkin) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topTrailing) {
-                AsyncImage(url: URL(string: skin.imageURL)) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFit()
-                    } else {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(uiColor: .tertiarySystemFill))
-                            .overlay {
-                                Image(systemName: "sparkles")
-                                    .foregroundStyle(.secondary)
-                            }
-                    }
+    private func skinCard(_ record: BadgeSkinRecord) -> some View {
+        VStack(spacing: 6) {
+            AsyncImage(url: URL(string: record.imageURL)) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFit()
+                } else {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(uiColor: .tertiarySystemFill))
                 }
-                .frame(height: 96)
-                .frame(maxWidth: .infinity)
-                .background(
-                    Color(uiColor: .secondarySystemGroupedBackground),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                )
-
-                Text(skin.stateText)
-                    .font(.caption2.bold())
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        skin.isUnlocked ? Color.green.opacity(0.15) : Color.orange.opacity(0.15),
-                        in: Capsule()
-                    )
-                    .foregroundStyle(skin.isUnlocked ? .green : .orange)
-                    .padding(6)
             }
+            .frame(height: 78)
 
-            Text(skin.name)
-                .font(.caption.bold())
+            Text(record.name)
+                .font(.caption2.bold())
                 .lineLimit(2)
-                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
         }
     }
 
-    private func load(uin: String, summaryFor accountName: String?) async {
-        guard !uin.isEmpty else { return }
-        isLoading = true
-        progressText = ""
-        errorMessage = ""
-        skins = []
-        let sequences = BadgeSkinService.querySequences(start: startSequence, end: endSequence)
-        let fetched = await BadgeSkinService.fetchSkins(uin: uin, sequences: sequences)
-        skins = fetched
-        if fetched.isEmpty {
-            errorMessage = "没有获取到皮肤，请检查 enc_uin 或编号范围。"
-        } else if let accountName {
-            queryStore.save(
-                kind: MusicQueryRecord.badgeKind,
-                accountName: accountName,
-                encUin: uin,
-                summary: "皮肤 \(fetched.count) 个，范围 \(sequences.first ?? 0)–\(sequences.last ?? 0)"
-            )
+    // MARK: - Storage
+
+    private func loadGroupNames() {
+        var names: [String: String] = [:]
+        for record in visibleRecords where !record.groupName.isEmpty {
+            names[record.categKey] = record.groupName
         }
-        isLoading = false
+        groupNames = names
     }
 
-    private func loadAllAccounts() async {
-        isLoading = true
-        progressText = ""
-        errorMessage = ""
-        skins = []
-        let sequences = BadgeSkinService.querySequences(start: startSequence, end: endSequence)
-        var collected: [BadgeSkin] = []
-        var savedCount = 0
+    private func updateGroupName(_ name: String, for key: String) {
+        for record in visibleRecords where record.categKey == key {
+            record.groupName = name
+        }
+        try? modelContext.save()
+    }
 
-        for (index, account) in musicAccounts.enumerated() {
-            progressText = "正在查询 \(index + 1)/\(musicAccounts.count)：\(account.username)"
-            let fetched = await BadgeSkinService.fetchSkins(
-                uin: account.username,
-                sequences: sequences
-            )
-            collected.append(contentsOf: fetched)
-            if !fetched.isEmpty {
-                savedCount += 1
-                queryStore.save(
-                    kind: MusicQueryRecord.badgeKind,
-                    accountName: account.username,
-                    encUin: account.username,
-                    summary: "皮肤 \(fetched.count) 个，范围 \(sequences.first ?? 0)–\(sequences.last ?? 0)"
+    private func queryState(for account: Account) -> BadgeQueryState? {
+        queryStates.first { $0.encUin == account.encUin }
+    }
+
+    private func store(_ skins: [BadgeSkin], for account: Account) {
+        var existing: [String: BadgeSkinRecord] = [:]
+        for record in (try? modelContext.fetch(FetchDescriptor<BadgeSkinRecord>())) ?? []
+        where record.encUin == account.encUin {
+            existing[record.key] = record
+        }
+
+        for skin in skins {
+            let key = "\(account.encUin)-\(skin.id)"
+            if let record = existing[key] {
+                record.sequence = skin.sequence
+                record.name = skin.name
+                record.imageURL = skin.imageURL
+                record.isUnlocked = skin.isUnlocked
+                record.stateText = skin.stateText
+                record.unlockDate = skin.unlockDate
+                record.userCount = skin.userCount
+                record.unlockTask = skin.unlockTask
+                record.backgroundColorHex = skin.backgroundColorHex
+                record.categID = skin.categID
+                record.updatedAt = .now
+            } else {
+                let record = BadgeSkinRecord(
+                    encUin: account.encUin,
+                    accountID: account.id,
+                    memberID: account.username,
+                    skin: skin
                 )
+                modelContext.insert(record)
             }
         }
+        try? modelContext.save()
+    }
 
-        progressText = ""
-        skins = collected
-        if savedCount == 0 {
-            errorMessage = "所有音乐账号都没有获取到皮肤。"
+    private func updateState(lastSequence: Int, for account: Account) {
+        if let state = queryState(for: account) {
+            state.lastSequence = max(state.lastSequence, lastSequence)
+            state.updatedAt = .now
+        } else {
+            modelContext.insert(
+                BadgeQueryState(
+                    encUin: account.encUin,
+                    accountID: account.id,
+                    memberID: account.username,
+                    lastSequence: lastSequence
+                )
+            )
         }
-        isLoading = false
+        try? modelContext.save()
+    }
+
+    // MARK: - Query
+
+    private func chunk(_ sequences: [Int], uin: String) async -> [BadgeSkin] {
+        var found: [BadgeSkin] = []
+        await withTaskGroup(of: (Int, BadgeSkin?).self) { group in
+            var iterator = sequences.makeIterator()
+            var launched = 0
+            while launched < 10, let seq = iterator.next() {
+                group.addTask { (seq, await BadgeSkinService.fetchSkin(uin: uin, sequence: seq)) }
+                launched += 1
+            }
+            while let (_, skin) = await group.next() {
+                if let skin { found.append(skin) }
+                if let seq = iterator.next() {
+                    group.addTask { (seq, await BadgeSkinService.fetchSkin(uin: uin, sequence: seq)) }
+                }
+            }
+        }
+        return found.sorted { $0.sequence < $1.sequence }
+    }
+
+    private func fullScan(for account: Account) async {
+        var sequence = 1
+        var consecutiveEmpty = 0
+        var lastSequence = 0
+
+        while consecutiveEmpty < 50, sequence <= 3000 {
+            progressText = "正在扫描序号 \(sequence)…"
+            let window = Array(sequence..<min(sequence + 10, 3001))
+            let found = await chunk(window, uin: account.encUin)
+            store(found, for: account)
+
+            let foundSet = Set(found.map(\.sequence))
+            for value in window {
+                if foundSet.contains(value) {
+                    consecutiveEmpty = 0
+                    lastSequence = max(lastSequence, value)
+                } else {
+                    consecutiveEmpty += 1
+                }
+                if consecutiveEmpty >= 50 { break }
+            }
+            sequence += 10
+            updateState(lastSequence: lastSequence, for: account)
+        }
+        progressText = ""
+    }
+
+    private func incrementalScan(for account: Account) async {
+        guard !isScanning else { return }
+        isScanning = true
+        progressText = ""
+        errorMessage = ""
+        defer { isScanning = false }
+
+        let state = queryState(for: account)
+        if state == nil {
+            await fullScan(for: account)
+        } else {
+            let start = max(1, (state?.lastSequence ?? 0) + 1)
+            progressText = "正在增量查询 \(start)–\(start + 19)…"
+            let found = await chunk(Array(start..<(start + 20)), uin: account.encUin)
+            if let last = found.map(\.sequence).max() {
+                store(found, for: account)
+                updateState(lastSequence: last, for: account)
+            }
+            progressText = ""
+        }
+        loadGroupNames()
+    }
+
+    private func scanAllAccounts(full: Bool) async {
+        guard !isScanning else { return }
+        isScanning = true
+        errorMessage = ""
+        defer { isScanning = false }
+
+        for account in musicAccounts {
+            progressText = "正在查询 \(account.username)…"
+            if full {
+                await fullScan(for: account)
+            } else {
+                let state = queryState(for: account)
+                if state == nil {
+                    await fullScan(for: account)
+                } else {
+                    let start = max(1, (state?.lastSequence ?? 0) + 1)
+                    let found = await chunk(Array(start..<(start + 20)), uin: account.encUin)
+                    if let last = found.map(\.sequence).max() {
+                        store(found, for: account)
+                        updateState(lastSequence: last, for: account)
+                    }
+                }
+            }
+        }
+        progressText = ""
+        loadGroupNames()
     }
 }
 
 private struct BadgeSkinDetailView: View {
-    let skin: BadgeSkin
+    let record: BadgeSkinRecord
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    AsyncImage(url: URL(string: skin.imageURL)) { phase in
+                    AsyncImage(url: URL(string: record.imageURL)) { phase in
                         if let image = phase.image {
                             image.resizable().scaledToFit()
                         } else {
@@ -303,16 +381,15 @@ private struct BadgeSkinDetailView: View {
                     .padding(.horizontal, 16)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(skin.name)
-                            .font(.title2.bold())
-                        Label(skin.stateText, systemImage: skin.isUnlocked ? "checkmark.seal.fill" : "lock.fill")
-                            .foregroundStyle(skin.isUnlocked ? .green : .orange)
-                        if !skin.unlockDate.isEmpty {
-                            Label("解锁时间：\(skin.unlockDate)", systemImage: "calendar")
+                        Text(record.name).font(.title2.bold())
+                        Label(record.stateText, systemImage: record.isUnlocked ? "checkmark.seal.fill" : "lock.fill")
+                            .foregroundStyle(record.isUnlocked ? .green : .orange)
+                        if !record.unlockDate.isEmpty {
+                            Label("解锁时间：\(record.unlockDate)", systemImage: "calendar")
                         }
-                        Label("使用人数：\(skin.userCount)", systemImage: "person.2")
-                        if !skin.unlockTask.isEmpty {
-                            Label("解锁任务：\(skin.unlockTask)", systemImage: "checklist")
+                        Label("使用人数：\(record.userCount)", systemImage: "person.2")
+                        if !record.unlockTask.isEmpty {
+                            Label("解锁任务：\(record.unlockTask)", systemImage: "checklist")
                         }
                     }
                     .font(.subheadline)
@@ -321,7 +398,6 @@ private struct BadgeSkinDetailView: View {
                 .padding(.vertical, 16)
             }
             .background(Color(uiColor: .systemGroupedBackground))
-            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .navigationTitle("皮肤详情")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

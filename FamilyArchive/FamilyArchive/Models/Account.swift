@@ -42,6 +42,8 @@ enum SocialPlatform: String, CaseIterable, Identifiable, Hashable {
 final class Account {
     @Attribute(.unique) var id: UUID
     var username: String
+    /// QQ 音乐账号 ID，所有自动查询都以它为 enc_uin。
+    var encUin: String = ""
     var platform: String
     /// 动态 / 影视 / 音乐各自独立，不共享账号数据。
     var scope: String = AccountScope.feed.rawValue
@@ -52,6 +54,7 @@ final class Account {
     init(
         id: UUID = UUID(),
         username: String,
+        encUin: String = "",
         platform: String,
         scope: String = AccountScope.feed.rawValue,
         avatarData: Data? = nil,
@@ -60,6 +63,7 @@ final class Account {
     ) {
         self.id = id
         self.username = username
+        self.encUin = encUin
         self.platform = platform
         self.scope = scope
         self.avatarData = avatarData

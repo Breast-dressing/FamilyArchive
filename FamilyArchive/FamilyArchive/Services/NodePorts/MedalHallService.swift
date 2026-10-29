@@ -45,19 +45,27 @@ enum MedalHallService {
 
     /// Replaces (or adds) `enc_uin` with the fixed value while keeping every
     /// other query item intact.
-    static func normalizedURLString(_ urlString: String) -> String {
+    static func normalizedURLString(
+        _ urlString: String,
+        encUin: String = fixedEncUin
+    ) -> String {
         guard var components = URLComponents(string: urlString) else {
             return fixedURLString
         }
         var items = components.queryItems ?? []
         items.removeAll { $0.name == "enc_uin" }
-        items.append(URLQueryItem(name: "enc_uin", value: fixedEncUin))
+        items.append(URLQueryItem(name: "enc_uin", value: encUin))
         components.queryItems = items
         return components.url?.absoluteString ?? fixedURLString
     }
 
-    static func load(urlString: String) async throws -> MedalHallSnapshot {
-        let normalized = normalizedURLString(urlString)
+    /// 用账号 ID 替换固定模板里的 enc_uin。
+    static func urlString(encUin: String) -> String {
+        normalizedURLString(fixedURLString, encUin: encUin)
+    }
+
+    static func load(urlString: String, encUin: String = fixedEncUin) async throws -> MedalHallSnapshot {
+        let normalized = normalizedURLString(urlString, encUin: encUin)
         guard let url = URL(string: normalized), !normalized.isEmpty else {
             throw MedalHallError.invalidURL
         }
@@ -75,8 +83,8 @@ enum MedalHallService {
         }
 
         let dataObject = NodePortSupport.dictionary(root["data"])
-        // Queries must always use the fixed enc_uin, never the page value.
-        let encUin = fixedEncUin
+        // 查询始终使用账号 ID，而不是页面返回值。
+        let fixed = encUin.isEmpty ? fixedEncUin : encUin
         let currentID = NodePortSupport.int(dataObject["CurrTabID"])
         let tabList = NodePortSupport.array(dataObject["TabList"])
         let currentModules = parseModules(
@@ -99,14 +107,14 @@ enum MedalHallService {
                 modules = currentModules
             } else {
                 modules = await fetchModules(
-                    encUin: encUin,
+                    encUin: fixed,
                     tabID: tabID
                 )
             }
             tabs.append(MedalTab(id: tabID, title: title, modules: modules))
         }
 
-        return MedalHallSnapshot(encUin: encUin, tabs: tabs)
+        return MedalHallSnapshot(encUin: fixed, tabs: tabs)
     }
 
     static func parseModules(_ value: Any?) -> [MedalModule] {

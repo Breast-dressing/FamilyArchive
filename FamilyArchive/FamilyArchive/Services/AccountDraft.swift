@@ -2,6 +2,7 @@ import Foundation
 
 struct AccountDraft: Equatable {
     var username: String = ""
+    var encUin: String = ""
     var password: String = ""
     var platform: SocialPlatform = .weibo
     var avatarData: Data?

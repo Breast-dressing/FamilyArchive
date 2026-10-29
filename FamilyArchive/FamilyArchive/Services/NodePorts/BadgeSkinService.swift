@@ -11,6 +11,7 @@ struct BadgeSkin: Identifiable, Hashable {
     let userCount: Int
     let unlockTask: String
     let backgroundColorHex: String
+    let categID: String
 
     var backgroundColor: String {
         backgroundColorHex.isEmpty ? "#fafafa" : backgroundColorHex
@@ -62,7 +63,8 @@ enum BadgeSkinService {
             unlockDate: formatDate(unlockTs),
             userCount: NodePortSupport.int(skinInfo["UnlockedUserCnt"]),
             unlockTask: unlockTask,
-            backgroundColorHex: NodePortSupport.string(level["BGColor"])
+            backgroundColorHex: NodePortSupport.string(level["BGColor"]),
+            categID: NodePortSupport.string(skinInfo["CategID"])
         )
     }
 

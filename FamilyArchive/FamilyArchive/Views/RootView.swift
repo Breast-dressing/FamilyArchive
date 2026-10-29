@@ -393,17 +393,9 @@ struct RootView: View {
         .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isBottomBarHidden)
     }
 
+    /// 二级页面只隐藏系统 TabBar，悬浮工具栏保持显示。
     private var isBottomBarHidden: Bool {
-        switch router.selectedTab {
-        case .more:
-            return true
-        case .music:
-            return !router.musicPath.isEmpty
-        case .feed:
-            return router.isFeedDetailActive
-        case .video:
-            return false
-        }
+        router.selectedTab == .more
     }
 
     private func handlePlusButtonTapped() {
