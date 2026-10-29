@@ -126,11 +126,12 @@ launch "Lyric cards" -UIPreviewCards
 sleep 1
 shot cards_ui.png
 
-# Secondary pages: native tab bar and custom bar must both be hidden.
-launch "Family detail (bar hidden)" -UIPreviewFamily
+# Secondary pages: the native tab bar hides, and the floating bar follows the
+# freed safe area down to the bottom of the screen instead of leaving with it.
+launch "Family detail (tab bar hidden)" -UIPreviewFamily
 shot family_detail_ui.png
 
-launch "Member detail (bar hidden)" -UIPreviewMember
+launch "Member detail (tab bar hidden)" -UIPreviewMember
 shot member_detail_ui.png
 
 # Feed toolbar: search capsule + date circle + plus circle.

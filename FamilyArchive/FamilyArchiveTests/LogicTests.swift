@@ -481,6 +481,33 @@ final class BottomToolbarLayoutTests: XCTestCase {
             )
         }
     }
+
+    /// 更多 没有搜索 / 日期筛选 / ＋，只有它让悬浮栏退场；退场是连续 offset/opacity，
+    /// 所以半路切回来能从当前位置反向，而不是重放固定的 spring。
+    func testBarLeavesOnlyOnTheMoreTab() {
+        for tab in RootTab.allCases {
+            XCTAssertEqual(
+                BottomToolbarLayout.isVisible(for: tab),
+                tab != .more,
+                "\(tab.title) 的悬浮栏显示状态被改动"
+            )
+        }
+    }
+
+    func testPresenceValuesAreContinuousEndpoints() {
+        XCTAssertEqual(BottomToolbarLayout.offset(forVisible: true), 0)
+        XCTAssertEqual(
+            BottomToolbarLayout.offset(forVisible: false),
+            BottomToolbarLayout.exitTravel
+        )
+        XCTAssertEqual(BottomToolbarLayout.opacity(forVisible: true), 1)
+        XCTAssertEqual(BottomToolbarLayout.opacity(forVisible: false), 0)
+        XCTAssertGreaterThan(
+            BottomToolbarLayout.exitTravel,
+            BottomToolbarLayout.controlSize,
+            "退场行程要够高才会整条离开屏幕"
+        )
+    }
 }
 
 final class RootTabTests: XCTestCase {

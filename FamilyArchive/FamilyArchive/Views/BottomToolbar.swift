@@ -37,6 +37,34 @@ enum BottomToolbarLayout {
     /// buttons in the page's NavigationBar, so the top and bottom chrome read
     /// as one system.
     static let controlSize: CGFloat = 44
+
+    // MARK: - Presence
+
+    /// 更多 has no 搜索 / 日期筛选 / ＋, so the floating bar leaves that page.
+    /// Every other tab keeps it.
+    static func isVisible(for tab: RootTab) -> Bool {
+        tab != .more
+    }
+
+    /// How far the bar travels on its way out. It has to clear its own height and
+    /// sink behind the tab bar; the space the bar reserves in the safe area does
+    /// not move, so nothing else on the page shifts while it leaves.
+    static let exitTravel: CGFloat = 96
+
+    /// The spring a tab change already uses, so the bar starts and settles
+    /// together with the tab bar instead of running a curve of its own.
+    static let exitAnimation: Animation = .spring(response: 0.34, dampingFraction: 0.86)
+
+    /// A plain 0…1 presence for the bar. Keeping the value continuous (rather
+    /// than inserting and removing the view) is what makes an interrupted exit —
+    /// switch back before it finishes — resume from where it is.
+    static func offset(forVisible visible: Bool) -> CGFloat {
+        visible ? 0 : exitTravel
+    }
+
+    static func opacity(forVisible visible: Bool) -> Double {
+        visible ? 1 : 0
+    }
 }
 
 /// Custom bottom toolbar that replaces the previous detached "＋" tab and the

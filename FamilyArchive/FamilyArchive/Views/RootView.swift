@@ -46,6 +46,7 @@ struct AppMessage: Identifiable {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var router = AppRouter()
     @State private var pendingImports = PendingImportStore()
     @State private var dateFilterStore = DateFilterStore()
@@ -69,23 +70,14 @@ struct RootView: View {
         TabView(selection: $router.selectedTab) {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
                 FeedView()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBarInset
-                    }
             }
 
             Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
                 VideoView()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBarInset
-                    }
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
                 MusicRootView()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBarInset
-                    }
             }
 
             Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
@@ -93,6 +85,9 @@ struct RootView: View {
             }
         }
         .tint(.blue)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            floatingBar
+        }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -391,28 +386,34 @@ struct RootView: View {
         )
     }
 
-    /// The floating bar shares the tab bar's downward exit: both slide off the
-    /// bottom edge together, then the system removes the tab bar. Returning
-    /// plays the same move in reverse.
-    @ViewBuilder
-    private var bottomBarInset: some View {
-        ZStack(alignment: .bottom) {
-            if !isBottomBarHidden {
-                bottomBar
-                    .transition(
-                        .asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .bottom).combined(with: .opacity)
-                        )
-                    )
-            }
-        }
-        .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isBottomBarHidden)
+    /// The floating bar sits in the safe area above the native tab bar and is
+    /// mounted once for the whole `TabView`.
+    ///
+    /// A per-tab `safeAreaInset` is torn down by the tab switch itself, so the
+    /// old `if` + `.transition` exit could never actually be seen — the view it
+    /// animated was already gone — and nothing could interrupt it. Mounting the
+    /// bar once keeps it alive across the switch, so its exit is a continuous
+    /// offset/opacity the user can reverse at any point, and switching back
+    /// mid-flight resumes from the current position instead of replaying a fixed
+    /// spring from the start.
+    private var floatingBar: some View {
+        bottomBar
+            .offset(y: BottomToolbarLayout.offset(forVisible: !isBottomBarHidden))
+            .opacity(BottomToolbarLayout.opacity(forVisible: !isBottomBarHidden))
+            .allowsHitTesting(!isBottomBarHidden)
+            .accessibilityHidden(isBottomBarHidden)
+            .animation(
+                reduceMotion
+                    ? .easeInOut(duration: 0.18)
+                    : BottomToolbarLayout.exitAnimation,
+                value: isBottomBarHidden
+            )
     }
 
-    /// 二级页面只隐藏系统 TabBar，悬浮工具栏保持显示。
+    /// 二级页面只隐藏系统 TabBar，悬浮工具栏跟随安全区落到屏幕底部继续显示；
+    /// 只有 更多 不需要工具栏，才真正退场。
     private var isBottomBarHidden: Bool {
-        router.selectedTab == .more
+        !BottomToolbarLayout.isVisible(for: router.selectedTab)
     }
 
     private func handlePlusButtonTapped() {
