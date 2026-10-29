@@ -55,7 +55,6 @@ struct BottomToolbar: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 6)
-        .animation(.snappy, value: isSearchFieldActive)
     }
 
     @ViewBuilder
