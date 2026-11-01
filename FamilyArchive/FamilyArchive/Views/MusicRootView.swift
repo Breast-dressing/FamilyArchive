@@ -42,30 +42,28 @@ struct MusicRootView: View {
         @Bindable var router = router
 
         NavigationStack(path: $router.musicPath) {
-            ZStack {
-                MusicHomeView()
-                    .opacity(router.musicSection == .music ? 1 : 0)
-                    .allowsHitTesting(router.musicSection == .music)
+            VStack(spacing: 8) {
+                // 分区切换在页面内，顶部只留给分类 Tab；档案分区在第 5、6 步迁到个人页后移除。
+                Picker("分区", selection: $router.musicSection) {
+                    Text("音乐").tag(MusicSection.music)
+                    Text("我的").tag(MusicSection.archive)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
 
-                ArchiveView()
-                    .opacity(router.musicSection == .archive ? 1 : 0)
-                    .allowsHitTesting(router.musicSection == .archive)
+                ZStack {
+                    MusicHomeView()
+                        .opacity(router.musicSection == .music ? 1 : 0)
+                        .allowsHitTesting(router.musicSection == .music)
+
+                    ArchiveView()
+                        .opacity(router.musicSection == .archive ? 1 : 0)
+                        .allowsHitTesting(router.musicSection == .archive)
+                }
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbarRole(.editor)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Picker("分区", selection: $router.musicSection) {
-                            Text("音乐").tag(MusicSection.music)
-                            Text("我的").tag(MusicSection.archive)
-                        }
-                    } label: {
-                        Image(systemName: "square.stack")
-                    }
-                    .accessibilityLabel("分区")
-                }
-
                 ToolbarItem(placement: .principal) {
                     if isSearchActive {
                         ToolbarSearchField(
@@ -88,9 +86,7 @@ struct MusicRootView: View {
                     )
                 }
 
-                ToolbarSpacer(.fixed)
-
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAccountsPresented = true
                     } label: {

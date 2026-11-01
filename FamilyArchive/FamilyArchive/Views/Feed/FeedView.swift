@@ -97,9 +97,7 @@ struct FeedView: View {
                     )
                 }
 
-                ToolbarSpacer(.fixed)
-
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Button {
                         isAccountsPresented = true
                     } label: {
