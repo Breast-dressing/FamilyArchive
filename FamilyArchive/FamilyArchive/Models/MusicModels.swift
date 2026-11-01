@@ -93,7 +93,7 @@ final class Song {
     /// 所属合集（可选）。
     var collectionID: UUID?
     var sortOrder: Int = 0
-    var createdAt: Date = .now
+    var createdAt: Date
 
     init(
         id: UUID = UUID(),
