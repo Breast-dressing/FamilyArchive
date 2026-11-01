@@ -66,7 +66,7 @@ struct FeedView: View {
                     )
                     .frame(maxWidth: .infinity, minHeight: 420)
                 } else {
-                    masonry
+                    feedList
                 }
             }
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
@@ -104,34 +104,19 @@ struct FeedView: View {
         }
     }
 
-    private var masonry: some View {
-        HStack(alignment: .top, spacing: 12) {
-            ForEach(0..<2, id: \.self) { column in
-                LazyVStack(spacing: 12) {
-                    ForEach(posts(in: column)) { post in
-                        NavigationLink {
-                            FeedPostDetailView(post: post)
-                        } label: {
-                            FeedPostCard(post: post, mediaHeight: mediaHeight(for: post))
-                        }
-                        .buttonStyle(.plain)
-                    }
+    /// 单列信息流：一条动态一条卡片，媒体走九宫格。
+    private var feedList: some View {
+        LazyVStack(spacing: 18) {
+            ForEach(filteredPosts) { post in
+                NavigationLink {
+                    FeedPostDetailView(post: post)
+                } label: {
+                    FeedPostCard(post: post)
                 }
-                .frame(maxWidth: .infinity, alignment: .top)
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-    }
-
-    private func posts(in column: Int) -> [FeedPost] {
-        filteredPosts.enumerated()
-            .filter { $0.offset % 2 == column }
-            .map { $0.element }
-    }
-
-    private func mediaHeight(for post: FeedPost) -> CGFloat {
-        let seed = post.id.uuidString.unicodeScalars.reduce(0) { $0 + Int($1.value) }
-        return [190, 150, 220, 170][seed % 4]
     }
 }

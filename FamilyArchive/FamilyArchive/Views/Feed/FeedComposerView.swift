@@ -10,6 +10,8 @@ struct FeedComposerView: View {
     @Query(sort: \Account.createdAt) private var accounts: [Account]
 
     @State private var selectedPlatform = ""
+    @State private var selectedGroup = FeedOwnerGroup.baby.rawValue
+    @State private var author = ""
     @State private var caption = ""
     @State private var selectedItems: [PhotosPickerItem] = []
     @State private var mediaData: [Data] = []
@@ -45,6 +47,19 @@ struct FeedComposerView: View {
                         }
                         .pickerStyle(.segmented)
                     }
+                }
+
+                Section("分组与发布者") {
+                    Picker("分组", selection: $selectedGroup) {
+                        ForEach(FeedOwnerGroup.allCases) { group in
+                            Text(group.title).tag(group.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    TextField("发布者", text: $author)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                 }
 
                 Section("照片或视频") {
@@ -169,7 +184,9 @@ struct FeedComposerView: View {
             platform: selectedPlatform,
             caption: trimmedCaption,
             mediaData: mediaData,
-            mediaIsVideo: mediaIsVideo
+            mediaIsVideo: mediaIsVideo,
+            ownerGroup: selectedGroup,
+            author: author.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         modelContext.insert(post)
         do {

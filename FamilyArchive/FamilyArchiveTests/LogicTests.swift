@@ -804,3 +804,38 @@ final class TopCategoryPageTests: XCTestCase {
         XCTAssertEqual(SourceOptions.options(from: ["全部", "微博"]), ["全部", "微博"])
     }
 }
+
+// MARK: - 第 3 步：动态页九宫格
+
+final class FeedPresentationTests: XCTestCase {
+    func testGridColumnsPerMediaCount() {
+        XCTAssertEqual(MediaGridRules.columns(for: 0), 1)
+        XCTAssertEqual(MediaGridRules.columns(for: 1), 1)
+        XCTAssertEqual(MediaGridRules.columns(for: 2), 3)
+        XCTAssertEqual(MediaGridRules.columns(for: 3), 3)
+        XCTAssertEqual(MediaGridRules.columns(for: 4), 2)
+        XCTAssertEqual(MediaGridRules.columns(for: 5), 3)
+        XCTAssertEqual(MediaGridRules.columns(for: 9), 3)
+        XCTAssertEqual(MediaGridRules.columns(for: 12), 3)
+    }
+
+    func testSourceSymbolsFollowThePlatform() {
+        XCTAssertEqual(FeedSourceIcon.symbol(for: "微博"), "bubble.left")
+        XCTAssertEqual(FeedSourceIcon.symbol(for: "小红书"), "book")
+        XCTAssertEqual(FeedSourceIcon.symbol(for: "抖音"), "music.note")
+        XCTAssertEqual(FeedSourceIcon.symbol(for: "哔哩哔哩"), "play.tv")
+        XCTAssertEqual(FeedSourceIcon.symbol(for: "视频号"), "video")
+        XCTAssertEqual(FeedSourceIcon.symbol(for: "未知来源"), "globe")
+    }
+
+    func testFooterTimeKeepsTheYearOnlyForOtherYears() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 12))!
+        let sameYear = calendar.date(from: DateComponents(year: 2026, month: 10, day: 29, hour: 12))!
+        let otherYear = calendar.date(from: DateComponents(year: 2025, month: 10, day: 29, hour: 12))!
+
+        XCTAssertEqual(FeedFooter.timeText(for: sameYear, now: now, calendar: calendar), "10月29日")
+        XCTAssertEqual(FeedFooter.timeText(for: otherYear, now: now, calendar: calendar), "2025年10月29日")
+    }
+}

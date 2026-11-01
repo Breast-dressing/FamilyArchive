@@ -55,7 +55,7 @@ struct TopCategoryTabs: View {
             }
         }
         .pickerStyle(.segmented)
-        .frame(minWidth: 140)
+        .frame(minWidth: 190)
         .accessibilityLabel("\(page.title)分类")
     }
 }

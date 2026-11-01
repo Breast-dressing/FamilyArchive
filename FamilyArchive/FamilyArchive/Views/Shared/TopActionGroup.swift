@@ -16,9 +16,11 @@ struct TopActionGroup: View {
     let onSearchTapped: () -> Void
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 26) {
             Button(action: onSearchTapped) {
                 Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(.primary)
             }
             .accessibilityLabel(isSearchActive ? "关闭\(page.title)搜索" : "\(page.title)搜索")
 
@@ -30,9 +32,12 @@ struct TopActionGroup: View {
                 }
             } label: {
                 Image(systemName: "line.3.horizontal.decrease.circle")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(.primary)
             }
             .accessibilityLabel("\(page.title)来源")
             .accessibilityValue(selectedSource)
         }
+        .frame(minWidth: 132)
     }
 }

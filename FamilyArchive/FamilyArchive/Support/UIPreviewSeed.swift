@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 #if DEBUG
 @MainActor
@@ -76,7 +77,60 @@ enum UIPreviewSeed {
             family.leaderMemberID = members.first?.memberID ?? ""
         }
 
+        seedFeedPosts(in: context)
+
         try? context.save()
+    }
+
+    /// 预览用动态：1 / 4 / 9 张图各一条，覆盖九宫格的三种列数。
+    private static func seedFeedPosts(in context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<FeedPost>())) ?? []
+        guard existing.isEmpty else { return }
+
+        let specs: [(count: Int, platform: String, title: String, group: FeedOwnerGroup, author: String)] = [
+            (1, SocialPlatform.weibo.rawValue, "今日份的宝宝", .baby, "宝宝"),
+            (4, SocialPlatform.xiaohongshu.rawValue, "小室拍摄花絮", .studio, "小室"),
+            (9, SocialPlatform.douyin.rawValue, "甲方爸爸的物料", .client, "甲方")
+        ]
+
+        for (index, spec) in specs.enumerated() {
+            let media = (0..<spec.count).compactMap { previewImageData(seed: index * 9 + $0) }
+            let post = FeedPost(
+                platform: spec.platform,
+                caption: spec.title,
+                mediaData: media,
+                mediaIsVideo: media.map { _ in false },
+                createdAt: Date().addingTimeInterval(Double(-index) * 86_400),
+                ownerGroup: spec.group.rawValue,
+                author: spec.author,
+                title: spec.title
+            )
+            context.insert(post)
+        }
+    }
+
+    private static func previewImageData(seed: Int) -> Data? {
+        let size = CGSize(width: 180, height: 180)
+        let colors: [UIColor] = [.systemPink, .systemBlue, .systemTeal, .systemIndigo, .systemOrange]
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let image = renderer.image { context in
+            colors[seed % colors.count].withAlphaComponent(0.45).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            let text = "\(seed + 1)" as NSString
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.systemFont(ofSize: 48, weight: .bold),
+                .foregroundColor: UIColor.white
+            ]
+            let textSize = text.size(withAttributes: attributes)
+            text.draw(
+                at: CGPoint(
+                    x: (size.width - textSize.width) / 2,
+                    y: (size.height - textSize.height) / 2
+                ),
+                withAttributes: attributes
+            )
+        }
+        return image.jpegData(compressionQuality: 0.7)
     }
 
     /// Debug-only pending import used by the UI review route to exercise the
