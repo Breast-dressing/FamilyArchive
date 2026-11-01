@@ -777,3 +777,30 @@ final class AudioFileStoreTests: XCTestCase {
     }
 }
 
+
+// MARK: - 第 2 步：三页共用顶部组件
+
+final class TopCategoryPageTests: XCTestCase {
+    func testTagsPerPage() {
+        XCTAssertEqual(TopCategoryPage.feed.tags, ["全部", "宝宝", "小室", "甲方"])
+        XCTAssertEqual(TopCategoryPage.video.tags, ["全部", "剧集", "电影", "综艺", "花絮"])
+        XCTAssertEqual(TopCategoryPage.music.tags, ["全部", "独唱", "清唱", "合唱"])
+    }
+
+    func testEveryPageOpensOnAll() {
+        for page in TopCategoryPage.allCases {
+            XCTAssertEqual(page.defaultTag, "全部", "\(page.title) 的默认标签被改动")
+            XCTAssertEqual(page.tags.first, page.defaultTag, "\(page.title) 的默认标签必须是第一个")
+            XCTAssertTrue(page.tags.contains(page.defaultTag))
+        }
+    }
+
+    func testSourceOptionsPutAllFirstAndDeduplicate() {
+        XCTAssertEqual(
+            SourceOptions.options(from: ["微博", "微博", "抖音"]),
+            ["全部", "微博", "抖音"]
+        )
+        XCTAssertEqual(SourceOptions.options(from: []), ["全部"])
+        XCTAssertEqual(SourceOptions.options(from: ["全部", "微博"]), ["全部", "微博"])
+    }
+}

@@ -8,16 +8,18 @@ struct VideoView: View {
     @Query(sort: \VideoShow.createdAt, order: .reverse) private var shows: [VideoShow]
 
     @State private var selectedPlatform = ""
+    @State private var selectedTag = TopCategoryPage.video.defaultTag
+    @State private var isSearchActive = false
     @State private var isAccountsPresented = false
     @Namespace private var accountsNamespace
+    @FocusState private var isSearchFocused: Bool
 
     private var scopedAccounts: [Account] {
         accounts.filter { $0.scope == AccountScope.video.rawValue }
     }
 
     private var platforms: [String] {
-        let unique = SocialPlatform.uniquePlatforms(from: scopedAccounts)
-        return unique.isEmpty ? ["全部"] : unique
+        SourceOptions.options(from: SocialPlatform.uniquePlatforms(from: scopedAccounts))
     }
 
     private var effectivePlatform: String {
@@ -30,14 +32,22 @@ struct VideoView: View {
             : shows.filter { $0.platform == effectivePlatform }
         let query = accessoryState.videoSearchText
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return scoped }
 
         return scoped.filter { show in
-            show.title.localizedCaseInsensitiveContains(query)
+            guard VideoFilter.matches(show, tag: selectedTag) else { return false }
+            guard !query.isEmpty else { return true }
+            return show.title.localizedCaseInsensitiveContains(query)
                 || show.synopsis.localizedCaseInsensitiveContains(query)
                 || show.cast.localizedCaseInsensitiveContains(query)
                 || show.platform.localizedCaseInsensitiveContains(query)
         }
+    }
+
+    private var videoSearchText: Binding<String> {
+        Binding(
+            get: { accessoryState.videoSearchText },
+            set: { accessoryState.videoSearchText = $0 }
+        )
     }
 
     private var sourceBinding: Binding<String> {
@@ -87,13 +97,25 @@ struct VideoView: View {
             .toolbarRole(.editor)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("影视来源", selection: sourceBinding) {
-                        ForEach(platforms, id: \.self) { platform in
-                            Text(platform).tag(platform)
-                        }
+                    if isSearchActive {
+                        ToolbarSearchField(
+                            text: videoSearchText,
+                            focus: $isSearchFocused
+                        )
+                        .frame(minWidth: 160)
+                    } else {
+                        TopCategoryTabs(page: .video, selection: $selectedTag)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(minWidth: 140)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    TopActionGroup(
+                        page: .video,
+                        isSearchActive: isSearchActive,
+                        sources: platforms,
+                        selectedSource: sourceBinding,
+                        onSearchTapped: { isSearchActive.toggle() }
+                    )
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -107,6 +129,12 @@ struct VideoView: View {
                         in: accountsNamespace
                     )
                     .accessibilityLabel("账号")
+                }
+            }
+            .onChange(of: isSearchActive) { _, active in
+                isSearchFocused = active
+                if !active {
+                    accessoryState.videoSearchText = ""
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {

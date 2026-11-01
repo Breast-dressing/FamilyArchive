@@ -9,16 +9,18 @@ struct FeedView: View {
     @Query(sort: \FeedPost.createdAt, order: .reverse) private var posts: [FeedPost]
 
     @State private var selectedPlatform = ""
+    @State private var selectedTag = TopCategoryPage.feed.defaultTag
+    @State private var isSearchActive = false
     @State private var isAccountsPresented = false
     @Namespace private var accountsNamespace
+    @FocusState private var isSearchFocused: Bool
 
     private var scopedAccounts: [Account] {
         accounts.filter { $0.scope == AccountScope.feed.rawValue }
     }
 
     private var platforms: [String] {
-        let unique = SocialPlatform.uniquePlatforms(from: scopedAccounts)
-        return unique.isEmpty ? ["全部"] : unique
+        SourceOptions.options(from: SocialPlatform.uniquePlatforms(from: scopedAccounts))
     }
 
     private var effectivePlatform: String {
@@ -33,11 +35,19 @@ struct FeedView: View {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return scoped.filter { post in
+            guard FeedFilter.matches(post, tag: selectedTag) else { return false }
             guard dateFilter.filter.contains(post.createdAt) else { return false }
             guard !query.isEmpty else { return true }
             return post.caption.localizedCaseInsensitiveContains(query)
                 || post.platform.localizedCaseInsensitiveContains(query)
         }
+    }
+
+    private var feedSearchText: Binding<String> {
+        Binding(
+            get: { accessoryState.feedSearchText },
+            set: { accessoryState.feedSearchText = $0 }
+        )
     }
 
     private var sourceBinding: Binding<String> {
@@ -66,13 +76,25 @@ struct FeedView: View {
             .toolbarRole(.editor)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("动态来源", selection: sourceBinding) {
-                        ForEach(platforms, id: \.self) { platform in
-                            Text(platform).tag(platform)
-                        }
+                    if isSearchActive {
+                        ToolbarSearchField(
+                            text: feedSearchText,
+                            focus: $isSearchFocused
+                        )
+                        .frame(minWidth: 160)
+                    } else {
+                        TopCategoryTabs(page: .feed, selection: $selectedTag)
                     }
-                    .pickerStyle(.segmented)
-                    .frame(minWidth: 140)
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    TopActionGroup(
+                        page: .feed,
+                        isSearchActive: isSearchActive,
+                        sources: platforms,
+                        selectedSource: sourceBinding,
+                        onSearchTapped: { isSearchActive.toggle() }
+                    )
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -86,6 +108,12 @@ struct FeedView: View {
                         in: accountsNamespace
                     )
                     .accessibilityLabel("账号")
+                }
+            }
+            .onChange(of: isSearchActive) { _, active in
+                isSearchFocused = active
+                if !active {
+                    accessoryState.feedSearchText = ""
                 }
             }
             .sheet(isPresented: $isAccountsPresented) {
