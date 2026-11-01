@@ -84,9 +84,12 @@ struct MusicRootView: View {
                         selectedSource: sourceBinding,
                         onSearchTapped: { isSearchActive.toggle() }
                     )
-                }
 
-                ToolbarItem(placement: .primaryAction) {
+                    // iOS 27 把所有 trailing toolbar item 合并成一枚玻璃胶囊，
+                    // 用分隔线把「搜索 + 来源」与「账号」分成两组。
+                    Divider()
+                        .frame(height: 20)
+
                     Button {
                         isAccountsPresented = true
                     } label: {
