@@ -51,11 +51,13 @@ struct TopCategoryTabs: View {
     var body: some View {
         Picker(page.title, selection: $selection) {
             ForEach(page.tags, id: \.self) { tag in
-                Text(tag).tag(tag)
+                // 两字标签靠内边距撑开，而不是给整条控件设死宽度。
+                Text(tag)
+                    .padding(.horizontal, 12)
+                    .tag(tag)
             }
         }
         .pickerStyle(.segmented)
-        .frame(minWidth: 195)
         .accessibilityLabel("\(page.title)分类")
     }
 }

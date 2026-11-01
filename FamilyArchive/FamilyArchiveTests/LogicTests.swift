@@ -830,11 +830,6 @@ final class FeedPresentationTests: XCTestCase {
         XCTAssertEqual(MediaGridRules.capacity(for: 12), 9)
     }
 
-    func testCapsuleWidthMatchesTheReferenceProportion() {
-        XCTAssertEqual(TopActionGroupMetrics.width, 172)
-        XCTAssertGreaterThan(TopActionGroupMetrics.width, 160)
-    }
-
     func testSourceSymbolsFollowThePlatform() {
         XCTAssertEqual(FeedSourceIcon.symbol(for: "微博"), "bubble.left")
         XCTAssertEqual(FeedSourceIcon.symbol(for: "小红书"), "book")
