@@ -10,8 +10,6 @@ struct MusicRootView: View {
     @State private var selectedTag = TopCategoryPage.music.defaultTag
     @State private var selectedPlatform = ""
     @State private var isSearchActive = false
-    @State private var isAccountsPresented = false
-    @Namespace private var accountsNamespace
     @FocusState private var isSearchFocused: Bool
 
     private var scopedAccounts: [Account] {
@@ -76,7 +74,7 @@ struct MusicRootView: View {
                     }
                 }
 
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     TopActionGroup(
                         page: .music,
                         isSearchActive: isSearchActive,
@@ -84,22 +82,6 @@ struct MusicRootView: View {
                         selectedSource: sourceBinding,
                         onSearchTapped: { isSearchActive.toggle() }
                     )
-
-                    // iOS 27 把所有 trailing toolbar item 合并成一枚玻璃胶囊，
-                    // 用分隔线把「搜索 + 来源」与「账号」分成两组。
-                    Divider()
-                        .frame(height: 20)
-
-                    Button {
-                        isAccountsPresented = true
-                    } label: {
-                        Image(systemName: "person.crop.circle")
-                    }
-                    .matchedTransitionSource(
-                        id: AccountsTransitionSource.sourceID(for: .music),
-                        in: accountsNamespace
-                    )
-                    .accessibilityLabel("账号")
                 }
             }
             .onChange(of: isSearchActive) { _, active in
@@ -107,15 +89,6 @@ struct MusicRootView: View {
                 if !active {
                     accessoryState.musicSearchText = ""
                 }
-            }
-            .sheet(isPresented: $isAccountsPresented) {
-                AccountsView(scope: .music)
-                    .navigationTransition(
-                        .zoom(
-                            sourceID: AccountsTransitionSource.sourceID(for: .music),
-                            in: accountsNamespace
-                        )
-                    )
             }
             .navigationDestination(for: MusicRoute.self) { route in
                 switch route {

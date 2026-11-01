@@ -11,8 +11,6 @@ struct FeedView: View {
     @State private var selectedPlatform = ""
     @State private var selectedTag = TopCategoryPage.feed.defaultTag
     @State private var isSearchActive = false
-    @State private var isAccountsPresented = false
-    @Namespace private var accountsNamespace
     @FocusState private var isSearchFocused: Bool
 
     private var scopedAccounts: [Account] {
@@ -87,7 +85,7 @@ struct FeedView: View {
                     }
                 }
 
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     TopActionGroup(
                         page: .feed,
                         isSearchActive: isSearchActive,
@@ -95,22 +93,6 @@ struct FeedView: View {
                         selectedSource: sourceBinding,
                         onSearchTapped: { isSearchActive.toggle() }
                     )
-
-                    // iOS 27 把所有 trailing toolbar item 合并成一枚玻璃胶囊，
-                    // 用分隔线把「搜索 + 来源」与「账号」分成两组。
-                    Divider()
-                        .frame(height: 20)
-
-                    Button {
-                        isAccountsPresented = true
-                    } label: {
-                        Image(systemName: "person.crop.circle")
-                    }
-                    .matchedTransitionSource(
-                        id: AccountsTransitionSource.sourceID(for: .feed),
-                        in: accountsNamespace
-                    )
-                    .accessibilityLabel("账号")
                 }
             }
             .onChange(of: isSearchActive) { _, active in
@@ -118,24 +100,6 @@ struct FeedView: View {
                 if !active {
                     accessoryState.feedSearchText = ""
                 }
-            }
-            .sheet(isPresented: $isAccountsPresented) {
-                AccountsView(scope: .feed)
-                    .navigationTransition(
-                        .zoom(
-                            sourceID: AccountsTransitionSource.sourceID(for: .feed),
-                            in: accountsNamespace
-                        )
-                    )
-            }
-            .onAppear {
-                #if DEBUG
-                guard UIPreviewSeed.wantsAccountsSheet else { return }
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(1.2))
-                    isAccountsPresented = true
-                }
-                #endif
             }
         }
     }

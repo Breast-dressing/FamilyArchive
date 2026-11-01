@@ -10,8 +10,6 @@ struct VideoView: View {
     @State private var selectedPlatform = ""
     @State private var selectedTag = TopCategoryPage.video.defaultTag
     @State private var isSearchActive = false
-    @State private var isAccountsPresented = false
-    @Namespace private var accountsNamespace
     @FocusState private var isSearchFocused: Bool
 
     private var scopedAccounts: [Account] {
@@ -108,7 +106,7 @@ struct VideoView: View {
                     }
                 }
 
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarTrailing) {
                     TopActionGroup(
                         page: .video,
                         isSearchActive: isSearchActive,
@@ -116,22 +114,6 @@ struct VideoView: View {
                         selectedSource: sourceBinding,
                         onSearchTapped: { isSearchActive.toggle() }
                     )
-
-                    // iOS 27 把所有 trailing toolbar item 合并成一枚玻璃胶囊，
-                    // 用分隔线把「搜索 + 来源」与「账号」分成两组。
-                    Divider()
-                        .frame(height: 20)
-
-                    Button {
-                        isAccountsPresented = true
-                    } label: {
-                        Image(systemName: "person.crop.circle")
-                    }
-                    .matchedTransitionSource(
-                        id: AccountsTransitionSource.sourceID(for: .video),
-                        in: accountsNamespace
-                    )
-                    .accessibilityLabel("账号")
                 }
             }
             .onChange(of: isSearchActive) { _, active in
@@ -139,15 +121,6 @@ struct VideoView: View {
                 if !active {
                     accessoryState.videoSearchText = ""
                 }
-            }
-            .sheet(isPresented: $isAccountsPresented) {
-                AccountsView(scope: .video)
-                    .navigationTransition(
-                        .zoom(
-                            sourceID: AccountsTransitionSource.sourceID(for: .video),
-                            in: accountsNamespace
-                        )
-                    )
             }
         }
     }
