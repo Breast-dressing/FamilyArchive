@@ -8,6 +8,11 @@
 
 import SwiftUI
 
+enum TopActionGroupMetrics {
+    /// 参照图里那枚长胶囊的比例：两个图标分列两端，中间留白。
+    static let width: CGFloat = 172
+}
+
 struct TopActionGroup: View {
     let page: TopCategoryPage
     let isSearchActive: Bool
@@ -16,13 +21,17 @@ struct TopActionGroup: View {
     let onSearchTapped: () -> Void
 
     var body: some View {
-        HStack(spacing: 26) {
+        HStack(spacing: 0) {
             Button(action: onSearchTapped) {
                 Image(systemName: isSearchActive ? "xmark" : "magnifyingglass")
                     .font(.system(size: 19, weight: .medium))
                     .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel(isSearchActive ? "关闭\(page.title)搜索" : "\(page.title)搜索")
+
+            Spacer(minLength: 0)
 
             Menu {
                 Picker("来源", selection: $selectedSource) {
@@ -34,11 +43,13 @@ struct TopActionGroup: View {
                 Image(systemName: "line.3.horizontal.decrease.circle")
                     .font(.system(size: 19, weight: .medium))
                     .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("\(page.title)来源")
             .accessibilityValue(selectedSource)
         }
-        .frame(minWidth: 132)
+        .frame(width: TopActionGroupMetrics.width)
         .tint(.primary)
     }
 }
