@@ -2,60 +2,83 @@ import Foundation
 import SwiftUI
 import UIKit
 
-struct VideoHeroCard: View {
-    let show: VideoShow
+/// 影视页顶部：左侧横向大图，右侧竖排「待播 / 待拍」计数。
+struct VideoBanner: View {
+    let show: VideoShow?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            cover
-                .frame(height: 220)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            Text(show.title)
-                .font(.title2.bold())
-                .lineLimit(2)
-
-            Text(show.synopsis)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .lineLimit(3)
-
-            HStack(spacing: 8) {
-                Text(show.platform)
-                Text("·")
-                Text("\(show.episodeTitles.count) 集")
-            }
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
-        .padding(14)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    @ViewBuilder
-    private var cover: some View {
-        if let data = show.coverData, let image = UIImage(data: data) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-        } else {
-            ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(.quaternary)
-                Image(systemName: "tv")
-                    .font(.system(size: 44))
-                    .foregroundStyle(.secondary)
+        Group {
+            if let data = show?.coverData, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    Rectangle().fill(.quaternary)
+                    Image(systemName: "tv")
+                        .font(.system(size: 42))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: 170)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .overlay(alignment: .bottomLeading) {
+            if let show {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(show.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(show.category)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    .ultraThinMaterial,
+                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                )
+                .padding(10)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(show.map { "\($0.category)·\($0.title)" } ?? "暂无影视")
     }
 }
 
-struct VideoShowCard: View {
+/// 顶部右侧的状态计数块。
+struct VideoStatPill: View {
+    let title: String
+    let count: Int
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text("\(count)")
+                .font(.title3.bold())
+                .monospacedDigit()
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 76)
+        .background(
+            .quaternary.opacity(0.6),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title)\(count)部")
+    }
+}
+
+/// 双列小图：上方横向封面，左下剧名、右下来源图标。
+struct VideoTile: View {
     let show: VideoShow
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Group {
                 if let data = show.coverData, let image = UIImage(data: data) {
                     Image(uiImage: image)
@@ -63,24 +86,30 @@ struct VideoShowCard: View {
                         .scaledToFill()
                 } else {
                     ZStack {
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.quaternary)
+                        Rectangle().fill(.quaternary)
                         Image(systemName: "tv")
-                            .font(.system(size: 30))
+                            .font(.system(size: 26))
                             .foregroundStyle(.secondary)
                     }
                 }
             }
-            .frame(width: 220, height: 124)
+            .frame(maxWidth: .infinity)
+            .frame(height: 96)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            Text(show.title)
-                .font(.headline)
-                .lineLimit(1)
-            Text("\(show.episodeTitles.count) 集")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(show.title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: FeedSourceIcon.symbol(for: show.platform))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel(show.platform)
+            }
+            .padding(.horizontal, 2)
         }
-        .frame(width: 220, alignment: .leading)
     }
 }

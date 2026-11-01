@@ -48,6 +48,18 @@ struct VideoView: View {
         )
     }
 
+    private var featured: VideoShow? {
+        VideoLayout.featured(in: filteredShows)
+    }
+
+    private var pendingCount: Int {
+        VideoFilter.count(of: filteredShows, status: .pending)
+    }
+
+    private var shootingCount: Int {
+        VideoFilter.count(of: filteredShows, status: .shooting)
+    }
+
     private var sourceBinding: Binding<String> {
         Binding(
             get: { effectivePlatform },
@@ -66,26 +78,35 @@ struct VideoView: View {
                     )
                     .frame(maxWidth: .infinity, minHeight: 420)
                 } else {
-                    VStack(alignment: .leading, spacing: 24) {
-                        if let featured = filteredShows.first {
-                            VideoHeroCard(show: featured)
-                                .padding(.horizontal)
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack(alignment: .top, spacing: 12) {
+                            VideoBanner(show: featured)
+                            VStack(spacing: 10) {
+                                VideoStatPill(
+                                    title: VideoStatus.pending.title,
+                                    count: pendingCount
+                                )
+                                VideoStatPill(
+                                    title: VideoStatus.shooting.title,
+                                    count: shootingCount
+                                )
+                            }
+                            .frame(width: 78)
                         }
+                        .padding(.horizontal)
 
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("全部影视")
-                                .font(.title2.bold())
-                                .padding(.horizontal)
-
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(alignment: .top, spacing: 16) {
-                                    ForEach(filteredShows) { show in
-                                        VideoShowCard(show: show)
-                                    }
-                                }
-                                .padding(.horizontal)
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 12),
+                                GridItem(.flexible(), spacing: 12)
+                            ],
+                            spacing: 16
+                        ) {
+                            ForEach(filteredShows) { show in
+                                VideoTile(show: show)
                             }
                         }
+                        .padding(.horizontal)
                     }
                     .padding(.vertical, 8)
                 }

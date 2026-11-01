@@ -15,6 +15,8 @@ struct VideoComposerView: View {
     @State private var title = ""
     @State private var synopsis = ""
     @State private var cast = ""
+    @State private var selectedCategory = VideoCategory.episode.rawValue
+    @State private var selectedStatus = VideoStatus.pending.rawValue
     @State private var coverItem: PhotosPickerItem?
     @State private var coverData: Data?
     @State private var episodeTitles: [String]
@@ -54,6 +56,22 @@ struct VideoComposerView: View {
 
                 Section("名字") {
                     TextField("名字", text: $title)
+                }
+
+                Section("分类与状态") {
+                    Picker("分类", selection: $selectedCategory) {
+                        ForEach(VideoCategory.allCases) { category in
+                            Text(category.title).tag(category.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker("状态", selection: $selectedStatus) {
+                        ForEach(VideoStatus.allCases) { status in
+                            Text(status.title).tag(status.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("简介&演职员表") {
@@ -137,15 +155,7 @@ struct VideoComposerView: View {
             fail("请选择封面。")
             return
         }
-        guard !trimmedSynopsis.isEmpty else {
-            fail("请输入简介。")
-            return
-        }
-        guard !trimmedCast.isEmpty else {
-            fail("请输入演职员表。")
-            return
-        }
-        guard !files.isEmpty, trimmedEpisodes.allSatisfy({ !$0.isEmpty }) else {
+        guard trimmedEpisodes.allSatisfy({ !$0.isEmpty }) else {
             fail("请为每个剧集填写标题。")
             return
         }
@@ -161,7 +171,9 @@ struct VideoComposerView: View {
             cast: trimmedCast,
             coverData: coverData,
             episodeTitles: trimmedEpisodes,
-            episodeFileNames: files.map(\.lastPathComponent)
+            episodeFileNames: files.map(\.lastPathComponent),
+            category: selectedCategory,
+            status: selectedStatus
         )
         modelContext.insert(show)
         do {

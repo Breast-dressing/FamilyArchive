@@ -850,3 +850,34 @@ final class FeedPresentationTests: XCTestCase {
         XCTAssertEqual(FeedFooter.timeText(for: otherYear, now: now, calendar: calendar), "2025年10月29日")
     }
 }
+
+// MARK: - 第 4 步：影视页
+
+final class VideoLayoutTests: XCTestCase {
+    private func makeShows() -> [VideoShow] {
+        [
+            VideoShow(platform: "哔哩哔哩", title: "甲", synopsis: "", cast: ""),
+            VideoShow(platform: "微博", title: "乙", synopsis: "", cast: "")
+        ]
+    }
+
+    func testFeaturedIsTheFirstFilteredShow() {
+        let shows = makeShows()
+        XCTAssertEqual(VideoLayout.featured(in: shows)?.title, "甲")
+        XCTAssertNil(VideoLayout.featured(in: []))
+    }
+
+    func testStatusCountsFollowTheFilteredList() {
+        let shows = [
+            VideoShow(platform: "微博", title: "待播一", synopsis: "", cast: "",
+                      status: VideoStatus.pending.rawValue),
+            VideoShow(platform: "微博", title: "待拍一", synopsis: "", cast: "",
+                      status: VideoStatus.shooting.rawValue),
+            VideoShow(platform: "微博", title: "待拍二", synopsis: "", cast: "",
+                      status: VideoStatus.shooting.rawValue)
+        ]
+        XCTAssertEqual(VideoFilter.count(of: shows, status: .pending), 1)
+        XCTAssertEqual(VideoFilter.count(of: shows, status: .shooting), 2)
+        XCTAssertEqual(VideoLayout.featured(in: shows)?.title, "待播一")
+    }
+}

@@ -42,6 +42,13 @@ enum VideoFilter {
     }
 }
 
+/// 顶部横向大图取过滤后最新的一条。
+enum VideoLayout {
+    static func featured(in shows: [VideoShow]) -> VideoShow? {
+        shows.first
+    }
+}
+
 @Model
 final class VideoShow {
     @Attribute(.unique) var id: UUID

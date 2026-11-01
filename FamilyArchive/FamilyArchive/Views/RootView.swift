@@ -402,8 +402,7 @@ struct RootView: View {
         case .feed:
             activeSheet = .feedComposer
         case .video:
-            filePickerPurpose = .video
-            isFilePickerPresented = true
+            activeSheet = .videoComposer([])
         case .more:
             activeSheet = .plus(.unavailable(pageName: "更多"))
         }

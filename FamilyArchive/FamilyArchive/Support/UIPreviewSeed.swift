@@ -78,6 +78,7 @@ enum UIPreviewSeed {
         }
 
         seedFeedPosts(in: context)
+        seedVideoShows(in: context)
 
         try? context.save()
     }
@@ -106,6 +107,33 @@ enum UIPreviewSeed {
                 title: spec.title
             )
             context.insert(post)
+        }
+    }
+
+    /// 预览用影视：覆盖 剧集 / 电影 / 综艺 / 花絮 与 待播 / 待拍。
+    private static func seedVideoShows(in context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<VideoShow>())) ?? []
+        guard existing.isEmpty else { return }
+
+        let specs: [(title: String, category: VideoCategory, status: VideoStatus, platform: SocialPlatform)] = [
+            ("未命名长剧", .episode, .pending, .bilibili),
+            ("夏日电影", .movie, .shooting, .weibo),
+            ("周末综艺", .variety, .pending, .douyin),
+            ("片场花絮", .behind, .shooting, .xiaohongshu)
+        ]
+
+        for (index, spec) in specs.enumerated() {
+            let show = VideoShow(
+                platform: spec.platform.rawValue,
+                title: spec.title,
+                synopsis: "预览用简介",
+                cast: "预览演员",
+                coverData: previewImageData(seed: index + 20),
+                createdAt: Date().addingTimeInterval(Double(-index) * 86_400),
+                category: spec.category.rawValue,
+                status: spec.status.rawValue
+            )
+            context.insert(show)
         }
     }
 
