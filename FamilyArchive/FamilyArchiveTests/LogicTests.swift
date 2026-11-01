@@ -601,3 +601,179 @@ final class AccountsTransitionSourceTests: XCTestCase {
         XCTAssertTrue(Set(AccountsTransitionSource.allIDs).isDisjoint(with: accessoryIDs))
     }
 }
+
+// MARK: - 动态 / 影视 / 音乐 重构（第 1 步：数据层）
+
+final class FeedFilterTests: XCTestCase {
+    private func makePosts() -> [FeedPost] {
+        [
+            FeedPost(platform: "微博", caption: "a", ownerGroup: FeedOwnerGroup.baby.rawValue),
+            FeedPost(platform: "微博", caption: "b", ownerGroup: FeedOwnerGroup.studio.rawValue),
+            FeedPost(platform: "抖音", caption: "c", ownerGroup: FeedOwnerGroup.client.rawValue)
+        ]
+    }
+
+    func testTagsAreAllPlusEveryOwnerGroup() {
+        XCTAssertEqual(FeedFilter.tags, ["全部", "宝宝", "小室", "甲方"])
+    }
+
+    func testAllTagKeepsEveryPost() {
+        XCTAssertEqual(FeedFilter.posts(makePosts(), tag: "全部").count, 3)
+    }
+
+    func testOwnerTagKeepsOnlyItsGroup() {
+        let posts = makePosts()
+        XCTAssertEqual(FeedFilter.posts(posts, tag: "宝宝").map(\.caption), ["a"])
+        XCTAssertEqual(FeedFilter.posts(posts, tag: "小室").map(\.caption), ["b"])
+        XCTAssertEqual(FeedFilter.posts(posts, tag: "甲方").map(\.caption), ["c"])
+        XCTAssertTrue(FeedFilter.posts(posts, tag: "不存在").isEmpty)
+    }
+
+    func testDisplayTitleFallsBackToCaption() {
+        XCTAssertEqual(FeedPost(platform: "微博", caption: "正文").displayTitle, "正文")
+        XCTAssertEqual(
+            FeedPost(platform: "微博", caption: "正文", title: "标题").displayTitle,
+            "标题"
+        )
+    }
+
+    func testNewFieldsHaveDefaultsForLightweightMigration() {
+        let post = FeedPost(platform: "微博", caption: "a")
+        XCTAssertEqual(post.ownerGroup, FeedOwnerGroup.baby.rawValue)
+        XCTAssertEqual(post.author, "")
+        XCTAssertEqual(post.title, "")
+    }
+}
+
+final class VideoFilterTests: XCTestCase {
+    private func makeShows() -> [VideoShow] {
+        [
+            VideoShow(
+                platform: "爱奇艺", title: "剧", synopsis: "", cast: "",
+                category: VideoCategory.episode.rawValue, status: VideoStatus.pending.rawValue
+            ),
+            VideoShow(
+                platform: "腾讯视频", title: "影", synopsis: "", cast: "",
+                category: VideoCategory.movie.rawValue, status: VideoStatus.shooting.rawValue
+            ),
+            VideoShow(
+                platform: "芒果", title: "综", synopsis: "", cast: "",
+                category: VideoCategory.variety.rawValue, status: VideoStatus.pending.rawValue
+            )
+        ]
+    }
+
+    func testTagsAreAllPlusEveryCategory() {
+        XCTAssertEqual(VideoFilter.tags, ["全部", "剧集", "电影", "综艺", "花絮"])
+    }
+
+    func testCategoryFilter() {
+        let shows = makeShows()
+        XCTAssertEqual(VideoFilter.shows(shows, tag: "全部").count, 3)
+        XCTAssertEqual(VideoFilter.shows(shows, tag: "电影").map(\.title), ["影"])
+        XCTAssertTrue(VideoFilter.shows(shows, tag: "花絮").isEmpty)
+    }
+
+    func testStatusCountsFeedTheTopBanner() {
+        let shows = makeShows()
+        XCTAssertEqual(VideoFilter.count(of: shows, status: .pending), 2)
+        XCTAssertEqual(VideoFilter.count(of: shows, status: .shooting), 1)
+    }
+
+    func testNewFieldsHaveDefaultsForLightweightMigration() {
+        let show = VideoShow(platform: "爱奇艺", title: "剧", synopsis: "", cast: "")
+        XCTAssertEqual(show.category, VideoCategory.episode.rawValue)
+        XCTAssertEqual(show.status, VideoStatus.pending.rawValue)
+    }
+}
+
+final class SongFilterTests: XCTestCase {
+    private func makeSongs() -> [Song] {
+        [
+            Song(title: "独", category: SongCategory.solo.rawValue),
+            Song(title: "清", category: SongCategory.aCapella.rawValue),
+            Song(title: "合", category: SongCategory.chorus.rawValue)
+        ]
+    }
+
+    func testTagsAreAllPlusEveryCategory() {
+        XCTAssertEqual(SongFilter.tags, ["全部", "独唱", "清唱", "合唱"])
+    }
+
+    func testCategoryFilter() {
+        let songs = makeSongs()
+        XCTAssertEqual(SongFilter.songs(songs, tag: "全部").count, 3)
+        XCTAssertEqual(SongFilter.songs(songs, tag: "清唱").map(\.title), ["清"])
+        XCTAssertTrue(SongFilter.songs(songs, tag: "不存在").isEmpty)
+    }
+
+    func testNewFieldsHaveDefaultsForLightweightMigration() {
+        let song = Song(title: "歌")
+        XCTAssertEqual(song.category, SongCategory.solo.rawValue)
+        XCTAssertEqual(song.fileName, "")
+        XCTAssertEqual(song.duration, 0)
+        XCTAssertNil(song.playlistID)
+        XCTAssertNil(song.collectionID)
+    }
+
+    func testPlaylistAndCollectionStartEmpty() {
+        XCTAssertEqual(Playlist(name: "自建").name, "自建")
+        XCTAssertEqual(SongCollection(name: "合集").name, "合集")
+        XCTAssertEqual(UserProfile().name, "")
+    }
+}
+
+final class AudioFileStoreTests: XCTestCase {
+    private var base: URL!
+
+    override func setUpWithError() throws {
+        base = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("AudioFileStoreTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        if let base { try? FileManager.default.removeItem(at: base) }
+    }
+
+    private func makeSource(named name: String, bytes: [UInt8] = [0x01, 0x02]) throws -> URL {
+        let url = base.appendingPathComponent(name)
+        try Data(bytes).write(to: url)
+        return url
+    }
+
+    func testImportCopiesFileAndKeepsExtension() throws {
+        let store = AudioFileStore(baseDirectory: base)
+        let source = try makeSource(named: "demo.m4a", bytes: [1, 2, 3, 4])
+
+        let fileName = try store.importAudio(from: source)
+
+        XCTAssertTrue(fileName.hasSuffix(".m4a"))
+        XCTAssertTrue(store.exists(fileName: fileName))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path), "源文件应保留")
+        XCTAssertEqual(try Data(contentsOf: store.url(forFileName: fileName)), Data([1, 2, 3, 4]))
+    }
+
+    func testImportDoesNotOverwritePreviousFiles() throws {
+        let store = AudioFileStore(baseDirectory: base)
+        let first = try store.importAudio(from: try makeSource(named: "a.mp3"))
+        let second = try store.importAudio(from: try makeSource(named: "a.mp3"))
+
+        XCTAssertNotEqual(first, second)
+        XCTAssertTrue(store.exists(fileName: first))
+        XCTAssertTrue(store.exists(fileName: second))
+    }
+
+    func testDeleteRemovesOnlyThatFile() throws {
+        let store = AudioFileStore(baseDirectory: base)
+        let keep = try store.importAudio(from: try makeSource(named: "keep.mp3"))
+        let drop = try store.importAudio(from: try makeSource(named: "drop.mp3"))
+
+        try store.delete(fileName: drop)
+
+        XCTAssertFalse(store.exists(fileName: drop))
+        XCTAssertTrue(store.exists(fileName: keep))
+        XCTAssertFalse(store.exists(fileName: ""))
+    }
+}
+
