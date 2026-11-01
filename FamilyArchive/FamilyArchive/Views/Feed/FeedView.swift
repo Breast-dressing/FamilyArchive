@@ -87,7 +87,7 @@ struct FeedView: View {
                     }
                 }
 
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     TopActionGroup(
                         page: .feed,
                         isSearchActive: isSearchActive,
@@ -96,6 +96,8 @@ struct FeedView: View {
                         onSearchTapped: { isSearchActive.toggle() }
                     )
                 }
+
+                ToolbarSpacer(.fixed)
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

@@ -108,7 +108,7 @@ struct VideoView: View {
                     }
                 }
 
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     TopActionGroup(
                         page: .video,
                         isSearchActive: isSearchActive,
@@ -117,6 +117,8 @@ struct VideoView: View {
                         onSearchTapped: { isSearchActive.toggle() }
                     )
                 }
+
+                ToolbarSpacer(.fixed)
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

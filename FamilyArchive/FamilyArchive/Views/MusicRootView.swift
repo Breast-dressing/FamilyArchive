@@ -78,7 +78,7 @@ struct MusicRootView: View {
                     }
                 }
 
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
                     TopActionGroup(
                         page: .music,
                         isSearchActive: isSearchActive,
@@ -87,6 +87,8 @@ struct MusicRootView: View {
                         onSearchTapped: { isSearchActive.toggle() }
                     )
                 }
+
+                ToolbarSpacer(.fixed)
 
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
