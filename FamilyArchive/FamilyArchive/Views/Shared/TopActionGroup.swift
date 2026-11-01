@@ -39,5 +39,6 @@ struct TopActionGroup: View {
             .accessibilityValue(selectedSource)
         }
         .frame(minWidth: 132)
+        .tint(.primary)
     }
 }
