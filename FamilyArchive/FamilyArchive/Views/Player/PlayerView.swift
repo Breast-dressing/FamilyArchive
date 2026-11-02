@@ -354,7 +354,7 @@ struct LyricsView: View {
             Text(line.text.isEmpty ? "♪" : line.text)
                 .font(settings.lyricFont(current: isCurrent))
                 .foregroundStyle(
-                    isCurrent ? Color.white.opacity(0.28) : Color.white.opacity(0.5)
+                    isCurrent ? Color.white.opacity(0.55) : Color.white.opacity(0.4)
                 )
                 .overlay(alignment: .leading) {
                     if isCurrent {
