@@ -290,7 +290,9 @@ struct RootView: View {
                 accessorySearchFocused = true
             }
         } else if arguments.contains("-UIPreviewMusic") {
-            showMusic([])
+            router.selectedTab = .music
+            router.musicSection = .music
+            router.musicPath = []
         } else if arguments.contains("-UIPreviewFeed") {
             router.selectedTab = .feed
         } else if arguments.contains("-UIPreviewVideo") {

@@ -111,7 +111,7 @@ shot() {
 launch "Music root (search + date + plus)" -UIPreviewMusic
 shot music_tab_ui.png
 
-launch "My page sections" -UIPreviewMusic
+launch "My page sections" -UIPreviewArchive
 shot my_page_sections_ui.png
 
 launch "Fans skins" -UIPreviewFans
