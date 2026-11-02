@@ -950,11 +950,11 @@ final class LRCParserTests: XCTestCase {
 
     func testCurrentIndexFollowsPlaybackTime() {
         let lines = LRCParser.parse(source)
-        XCTAssertNil(LRCParser.currentIndex(in: lines, at: 1))
-        XCTAssertEqual(LRCParser.currentIndex(in: lines, at: 3), 0)
-        XCTAssertEqual(LRCParser.currentIndex(in: lines, at: 20), 1)
-        XCTAssertEqual(LRCParser.currentIndex(in: lines, at: 999), 2)
-        XCTAssertNil(LRCParser.currentIndex(in: [], at: 10))
+        XCTAssertNil(LyricsAnimation.currentIndex(in: lines, at: 1))
+        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 3), 0)
+        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 20), 1)
+        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 999), 2)
+        XCTAssertNil(LyricsAnimation.currentIndex(in: [], at: 10))
     }
 
     func testTimeText() {
@@ -1009,5 +1009,136 @@ final class PlaybackStoreTests: XCTestCase {
         store.replaceQueue(items(2), startAt: 1)
         XCTAssertEqual(store.lyrics.first?.text, "一句")
         XCTAssertEqual(store.duration, 0)
+    }
+}
+
+// MARK: - Lyricify Mobile 移植：逐字、翻译、歌词源与设置
+
+final class LyricsRichParsingTests: XCTestCase {
+    private let source = """
+    [00:04.00]<00:04.00>窗外<00:04.60>的麻雀<00:05.20> 在电线杆上多嘴
+    [00:04.00]The sparrows outside the window
+    [00:09.00]你说这一句
+    """
+
+    func testWordTimestampsAreKept() {
+        let lines = LRCParser.parse(source)
+        XCTAssertEqual(lines.count, 2, "同时间的第二行应合并为翻译")
+        XCTAssertEqual(lines[0].text, "窗外的麻雀 在电线杆上多嘴")
+        XCTAssertEqual(lines[0].words.map(\.text), ["窗外", "的麻雀", " 在电线杆上多嘴"])
+        XCTAssertEqual(lines[0].words.first?.start, 4.0)
+    }
+
+    func testTranslationLineIsMerged() {
+        let lines = LRCParser.parse(source)
+        XCTAssertEqual(lines[0].translation, "The sparrows outside the window")
+        XCTAssertNil(lines[1].translation)
+    }
+
+    func testFillProgressLineAndWords() {
+        let lines = LRCParser.parse(source)
+        let wordLine = lines[0]
+
+        XCTAssertEqual(
+            LyricsAnimation.fillProgress(for: wordLine, at: 2, nextStart: 9),
+            0
+        )
+        XCTAssertEqual(
+            LyricsAnimation.fillProgress(
+                for: LyricLine(id: 0, time: 0, text: "一二三四"),
+                at: 2,
+                nextStart: 4
+            ),
+            0.5,
+            accuracy: 0.001
+        )
+        let half = LyricsAnimation.fillProgress(for: wordLine, at: 4.3, nextStart: 9)
+        XCTAssertGreaterThan(half, 0)
+        XCTAssertLessThan(half, 1)
+        XCTAssertEqual(LyricsAnimation.fillProgress(for: wordLine, at: 30, nextStart: 40), 1)
+    }
+}
+
+final class LyricsServiceTests: XCTestCase {
+    func testSearchURLsAreBuilt() {
+        XCTAssertEqual(
+            LyricsService.searchURL(source: .qqMusic, keyword: "晴天")?.absoluteString.contains("client_search_cp"),
+            true
+        )
+        XCTAssertEqual(
+            LyricsService.searchURL(source: .netease, keyword: "晴天")?.absoluteString.contains("music.163.com/api/search/get"),
+            true
+        )
+        XCTAssertEqual(
+            LyricsService.searchURL(source: .kugou, keyword: "晴天")?.absoluteString.contains("krcs.kugou.com/search"),
+            true
+        )
+    }
+
+    func testSongIDExtraction() {
+        let qq = #"{"data":{"song":{"list":[{"songmid":"003OUlho2HcRHC"}]}}}"#.data(using: .utf8)!
+        XCTAssertEqual(LyricsService.songID(source: .qqMusic, from: qq), "003OUlho2HcRHC")
+
+        let netease = #"{"result":{"songs":[{"id":186016}]}}"#.data(using: .utf8)!
+        XCTAssertEqual(LyricsService.songID(source: .netease, from: netease), "186016")
+
+        let kugou = #"{"candidates":[{"id":"123","accesskey":"abc"}]}"#.data(using: .utf8)!
+        XCTAssertEqual(LyricsService.songID(source: .kugou, from: kugou), "123|abc")
+        XCTAssertEqual(
+            LyricsService.lyricURL(source: .kugou, songID: "123|abc")?.absoluteString.contains("accesskey=abc"),
+            true
+        )
+    }
+
+    func testDecodePerSource() {
+        let qq = #"{"lyric":"[00:01.00]一句","trans":"[00:01.00]one line"}"#.data(using: .utf8)!
+        XCTAssertEqual(LyricsService.decode(source: .qqMusic, from: qq)?.lyrics, "[00:01.00]一句")
+
+        let netease = #"{"lrc":{"lyric":"[00:01.00]一句"},"tlyric":{"lyric":"[00:01.00]one"}}"#.data(using: .utf8)!
+        XCTAssertEqual(LyricsService.decode(source: .netease, from: netease)?.translation, "[00:01.00]one")
+
+        let raw = "[00:01.00]一句"
+        let kugou = "{\"content\":\"\(Data(raw.utf8).base64EncodedString())\"}".data(using: .utf8)!
+        XCTAssertEqual(LyricsService.decode(source: .kugou, from: kugou)?.lyrics, raw)
+    }
+
+    func testDocumentMergesTranslationLines() {
+        let doc = LyricsService.document(
+            from: "[00:01.00]一句",
+            translation: "[00:01.00]one line"
+        )
+        XCTAssertEqual(doc.lines.first?.translation, "one line")
+        XCTAssertTrue(LyricsService.document(from: "  ", translation: nil).isInstrumental)
+    }
+}
+
+@MainActor
+final class PlayerSettingsTests: XCTestCase {
+    func testDefaultsAndPersistence() {
+        let suite = "PlayerSettings-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        let store = PlayerSettingsStore(defaults: defaults)
+        XCTAssertEqual(store.source, .qqMusic)
+        XCTAssertTrue(store.showTranslation)
+        XCTAssertEqual(store.latency, 0)
+
+        store.source = .netease
+        store.showTranslation = false
+        store.latency = 0.4
+
+        let reloaded = PlayerSettingsStore(defaults: defaults)
+        XCTAssertEqual(reloaded.source, .netease)
+        XCTAssertFalse(reloaded.showTranslation)
+        XCTAssertEqual(reloaded.latency, 0.4, accuracy: 0.001)
+        defaults.removePersistentDomain(forName: suite)
+    }
+
+    func testFontScalesWithSettings() {
+        let defaults = UserDefaults(suiteName: "PlayerSettings-font-\(UUID().uuidString)")!
+        let store = PlayerSettingsStore(defaults: defaults)
+        store.fontScale = 1.4
+        store.boldText = false
+        XCTAssertNotNil(store.lyricFont(current: false))
+        XCTAssertEqual(store.backgroundBlurRadius, 46 * store.blurScale, accuracy: 0.001)
     }
 }

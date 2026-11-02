@@ -6,39 +6,50 @@ enum PlayerTransition {
     static let source = "player.mini"
 }
 
-/// 全屏播放器：模糊封面背景、大封面、歌词、进度与播放控制。
+/// 全屏播放器：Lyricify Mobile 的交互重写 —— 封面点按播放 / 双击下一首、
+/// 标题左右滑动切歌、逐字歌词填充、翻译、拖动效果与可调模糊。
 struct PlayerView: View {
     @Environment(PlaybackStore.self) private var playback
+    @Environment(PlayerSettingsStore.self) private var settings
     @Environment(\.dismiss) private var dismiss
 
+    @State private var document: LyricsDocument = .empty
+    @State private var isLoadingLyrics = false
     @State private var isQueuePresented = false
+    @State private var isSettingsPresented = false
     @State private var scrubProgress: Double?
+    @State private var pullOffset: CGFloat = 0
+
+    private var displayTime: Double {
+        max(playback.currentTime + settings.latency, 0)
+    }
+
+    private var lines: [LyricLine] { document.lines }
+
+    private var currentIndex: Int? {
+        LyricsAnimation.currentIndex(in: lines, at: displayTime)
+    }
 
     var body: some View {
         ZStack {
             background
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 header
                 artwork
                 titleRow
-                LyricsView(
-                    lines: playback.lyrics,
-                    currentIndex: playback.currentLyricIndex
-                ) { line in
-                    playback.seek(to: line.time)
-                }
-                .frame(maxHeight: .infinity)
+                lyrics
                 progressRow
                 controls
             }
             .padding(.horizontal, 22)
             .padding(.bottom, 18)
         }
-        .sheet(isPresented: $isQueuePresented) {
-            PlaybackQueueView()
-        }
-        .statusBarHidden(false)
+        .sheet(isPresented: $isQueuePresented) { PlaybackQueueView() }
+        .sheet(isPresented: $isSettingsPresented) { PlayerSettingsView() }
+        .task(id: playback.current?.id) { await loadLyrics() }
     }
+
+    // MARK: - 背景
 
     private var background: some View {
         ZStack {
@@ -46,12 +57,12 @@ struct PlayerView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
-                    .blur(radius: 46)
-                    .overlay(Color.black.opacity(0.35))
+                    .blur(radius: settings.backgroundBlurRadius)
+                    .overlay(Color.black.opacity(0.4))
                     .ignoresSafeArea()
             } else {
                 LinearGradient(
-                    colors: [.black.opacity(0.85), .black],
+                    colors: [.black.opacity(0.9), .black],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -60,11 +71,11 @@ struct PlayerView: View {
         }
     }
 
+    // MARK: - 顶栏
+
     private var header: some View {
         HStack {
-            Button {
-                dismiss()
-            } label: {
+            Button { dismiss() } label: {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(.white)
@@ -81,26 +92,35 @@ struct PlayerView: View {
 
             Spacer()
 
-            Button {
-                isQueuePresented = true
-            } label: {
-                Image(systemName: "list.bullet")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .contentShape(Rectangle())
+            HStack(spacing: 14) {
+                Button { isSettingsPresented = true } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("播放器设置")
+
+                Button { isQueuePresented = true } label: {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 32, height: 36)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("播放列表")
             }
-            .accessibilityLabel("播放列表")
         }
         .padding(.top, 8)
     }
 
+    // MARK: - 封面（点按播放，双击下一首）
+
     private var artwork: some View {
         Group {
             if let data = playback.current?.artwork, let image = UIImage(data: data) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFill()
+                Image(uiImage: image).resizable().scaledToFill()
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 24, style: .continuous)
@@ -115,8 +135,14 @@ struct PlayerView: View {
         .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: .black.opacity(0.35), radius: 24, y: 12)
-        .padding(.top, 4)
+        .scaleEffect(1 - min(abs(pullOffset) / 1200, 0.08))
+        .onTapGesture(count: 2) { playback.next() }
+        .onTapGesture { playback.toggle() }
+        .accessibilityLabel(playback.isPlaying ? "暂停" : "播放")
+        .accessibilityHint("双击下一首")
     }
+
+    // MARK: - 标题（左右滑动切歌）
 
     private var titleRow: some View {
         VStack(spacing: 4) {
@@ -129,7 +155,50 @@ struct PlayerView: View {
                 .foregroundStyle(.white.opacity(0.7))
                 .lineLimit(1)
         }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(minimumDistance: 30)
+                .onEnded { value in
+                    if value.translation.width < -40 {
+                        playback.next()
+                    } else if value.translation.width > 40 {
+                        playback.previous()
+                    }
+                }
+        )
+        .accessibilityHint("向左滑动下一首，向右滑动上一首")
     }
+
+    // MARK: - 歌词
+
+    private var lyrics: some View {
+        LyricsView(
+            document: document,
+            currentIndex: currentIndex,
+            time: displayTime,
+            isLoading: isLoadingLyrics,
+            settings: settings,
+            onSelect: { line in
+                playback.seek(to: max(line.time - settings.latency, 0))
+            }
+        )
+        .frame(maxHeight: .infinity)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10)
+                .onChanged { value in
+                    guard settings.pullEffect else { return }
+                    pullOffset = value.translation.height
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        pullOffset = 0
+                    }
+                }
+        )
+    }
+
+    // MARK: - 进度
 
     private var progressRow: some View {
         VStack(spacing: 4) {
@@ -148,7 +217,6 @@ struct PlayerView: View {
                 )
                 .tint(.white)
             } else {
-                // 没有音源时不给一个可拖的空滑块。
                 Capsule()
                     .fill(.white.opacity(0.22))
                     .frame(height: 5)
@@ -170,6 +238,8 @@ struct PlayerView: View {
         }
         return playback.currentTime
     }
+
+    // MARK: - 控制
 
     private var controls: some View {
         HStack(spacing: 44) {
@@ -194,40 +264,60 @@ struct PlayerView: View {
         .foregroundStyle(.white)
         .buttonStyle(.plain)
     }
+
+    // MARK: - 歌词加载
+
+    private func loadLyrics() async {
+        guard let item = playback.current else {
+            document = .empty
+            return
+        }
+        isLoadingLyrics = true
+        defer { isLoadingLyrics = false }
+
+        let local = LRCParser.parse(item.lyricsText)
+        if !local.isEmpty {
+            document = LyricsDocument(lines: local)
+        }
+
+        let fetched = await LyricsService.load(
+            title: item.title,
+            artist: item.subtitle,
+            localLyrics: item.lyricsText,
+            source: settings.source
+        )
+        if !fetched.isEmpty {
+            document = fetched
+        } else if local.isEmpty {
+            document = .empty
+        }
+    }
 }
 
-/// 歌词：当前行高亮、随播放自动居中、点按跳转。
+/// 歌词列表：当前行放大高亮、逐字填充、翻译、点按跳转、自动居中。
 struct LyricsView: View {
-    let lines: [LyricLine]
+    let document: LyricsDocument
     let currentIndex: Int?
+    let time: Double
+    let isLoading: Bool
+    let settings: PlayerSettingsStore
     let onSelect: (LyricLine) -> Void
 
     var body: some View {
         Group {
-            if lines.isEmpty {
-                Text("暂无歌词")
+            if document.lines.isEmpty {
+                Text(isLoading ? "正在获取歌词…" : "没有找到歌词")
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 18) {
-                            ForEach(Array(lines.enumerated()), id: \.offset) { offset, line in
-                                Text(line.text.isEmpty ? " " : line.text)
-                                    .font(offset == currentIndex
-                                          ? .title3.weight(.bold)
-                                          : .body.weight(.medium))
-                                    .foregroundStyle(
-                                        offset == currentIndex
-                                            ? Color.white
-                                            : Color.white.opacity(0.45)
-                                    )
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: .infinity)
-                                    .animation(.easeInOut(duration: 0.25), value: currentIndex)
-                                    .onTapGesture { onSelect(line) }
+                        LazyVStack(spacing: 16) {
+                            ForEach(Array(document.lines.enumerated()), id: \.offset) { offset, line in
+                                lineView(offset: offset, line: line)
                                     .id(offset)
+                                    .onTapGesture { onSelect(line) }
                             }
                         }
                         .padding(.vertical, 120)
@@ -246,5 +336,52 @@ struct LyricsView: View {
                 }
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: currentIndex)
+    }
+
+    private func lineView(offset: Int, line: LyricLine) -> some View {
+        let isCurrent = offset == currentIndex
+        let nextStart = offset + 1 < document.lines.count
+            ? document.lines[offset + 1].time
+            : nil
+        let progress = LyricsAnimation.fillProgress(
+            for: line,
+            at: time,
+            nextStart: nextStart
+        )
+
+        return VStack(spacing: 4) {
+            Text(line.text.isEmpty ? "♪" : line.text)
+                .font(settings.lyricFont(current: isCurrent))
+                .foregroundStyle(
+                    isCurrent ? Color.white.opacity(0.28) : Color.white.opacity(0.5)
+                )
+                .overlay(alignment: .leading) {
+                    if isCurrent {
+                        GeometryReader { proxy in
+                            Text(line.text.isEmpty ? "♪" : line.text)
+                                .font(settings.lyricFont(current: true))
+                                .foregroundStyle(.white)
+                                .mask(alignment: .leading) {
+                                    Rectangle()
+                                        .frame(width: proxy.size.width * progress)
+                                }
+                        }
+                    }
+                }
+
+            if settings.showTranslation,
+               isCurrent,
+               let translation = line.translation,
+               !translation.isEmpty {
+                Text(translation)
+                    .font(settings.translationFont)
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .scaleEffect(isCurrent ? 1.04 : 1)
+        .opacity(isCurrent ? 1 : 0.85)
     }
 }

@@ -60,6 +60,7 @@ struct RootView: View {
     @State private var dateFilterStore = DateFilterStore()
     @State private var accessoryState = RootAccessoryState()
     @State private var playback = PlaybackStore()
+    @State private var playerSettings = PlayerSettingsStore()
     @Query(sort: \Song.sortOrder) private var songs: [Song]
     @Namespace private var accessoryNamespace
 
@@ -131,6 +132,7 @@ struct RootView: View {
         .environment(dateFilterStore)
         .environment(accessoryState)
         .environment(playback)
+        .environment(playerSettings)
         .environment(\.locale, Locale(identifier: "zh_CN"))
         .onChange(of: router.selectedTab) { _, newTab in
             accessorySearchFocused = false

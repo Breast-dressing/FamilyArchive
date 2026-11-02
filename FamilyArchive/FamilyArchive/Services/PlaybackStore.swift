@@ -40,7 +40,7 @@ final class PlaybackStore {
     }
 
     var currentLyricIndex: Int? {
-        LRCParser.currentIndex(in: lyrics, at: currentTime)
+        LyricsAnimation.currentIndex(in: lyrics, at: currentTime)
     }
 
     var progress: Double {
