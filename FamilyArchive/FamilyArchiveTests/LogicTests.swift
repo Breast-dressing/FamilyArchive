@@ -467,22 +467,6 @@ final class LyricCardServiceTests: XCTestCase {
     }
 }
 
-final class BottomToolbarLayoutTests: XCTestCase {
-    func testControlOrderIsLockedToSearchDatePlus() {
-        XCTAssertEqual(BottomToolbarLayout.controls, [.search, .date, .plus])
-    }
-
-    func testControlOrderNeverChangesWithTab() {
-        for tab in RootTab.allCases {
-            XCTAssertEqual(
-                BottomToolbarLayout.controls(for: tab),
-                [.search, .date, .plus],
-                "\(tab.title) 的工具栏顺序被改动"
-            )
-        }
-    }
-}
-
 final class RootTabTests: XCTestCase {
     func testMainTabOrderIsFeedVideoMusicMore() {
         XCTAssertEqual(RootTab.allCases, [.feed, .video, .music, .more])
@@ -944,5 +928,86 @@ final class ProfileLayoutTests: XCTestCase {
         let all = ProfileAccounts.all([feed, video, music])
         XCTAssertEqual(all.count, 3)
         XCTAssertEqual(all.map(\.username), ["音乐", "影视", "动态"])
+    }
+}
+
+// MARK: - 第 7、8 步：播放条与播放器
+
+final class LRCParserTests: XCTestCase {
+    private let source = """
+    [00:12.50]第二行
+    [00:03.00]第一行
+    [01:00.00]第三行
+    没有时间戳的行
+    """
+
+    func testParsesAndSortsByTime() {
+        let lines = LRCParser.parse(source)
+        XCTAssertEqual(lines.map(\.text), ["第一行", "第二行", "第三行"])
+        XCTAssertEqual(lines.map(\.time), [3, 12.5, 60])
+        XCTAssertEqual(lines.map(\.id), [0, 1, 2])
+    }
+
+    func testCurrentIndexFollowsPlaybackTime() {
+        let lines = LRCParser.parse(source)
+        XCTAssertNil(LRCParser.currentIndex(in: lines, at: 1))
+        XCTAssertEqual(LRCParser.currentIndex(in: lines, at: 3), 0)
+        XCTAssertEqual(LRCParser.currentIndex(in: lines, at: 20), 1)
+        XCTAssertEqual(LRCParser.currentIndex(in: lines, at: 999), 2)
+        XCTAssertNil(LRCParser.currentIndex(in: [], at: 10))
+    }
+
+    func testTimeText() {
+        XCTAssertEqual(PlaybackTime.text(0), "0:00")
+        XCTAssertEqual(PlaybackTime.text(65.4), "1:05")
+        XCTAssertEqual(PlaybackTime.text(-3), "0:00")
+    }
+}
+
+@MainActor
+final class PlaybackStoreTests: XCTestCase {
+    private func items(_ count: Int) -> [PlaybackItem] {
+        (0..<count).map { index in
+            PlaybackItem(
+                id: "song-\(index)",
+                title: "歌\(index)",
+                subtitle: "歌手",
+                artwork: nil,
+                fileURL: nil,
+                kind: .audio,
+                lyricsText: "[00:01.00]一句"
+            )
+        }
+    }
+
+    func testQueueNavigationWraps() {
+        let store = PlaybackStore()
+        store.replaceQueue(items(3))
+
+        XCTAssertEqual(store.current?.title, "歌0")
+        store.next()
+        XCTAssertEqual(store.current?.title, "歌1")
+        store.next()
+        store.next()
+        XCTAssertEqual(store.current?.title, "歌0")
+        store.previous()
+        XCTAssertEqual(store.current?.title, "歌2")
+    }
+
+    func testEmptyQueueIsSafe() {
+        let store = PlaybackStore()
+        store.next()
+        store.previous()
+        store.toggle()
+        XCTAssertNil(store.current)
+        XCTAssertEqual(store.progress, 0)
+        XCTAssertTrue(store.lyrics.isEmpty)
+    }
+
+    func testLyricsComeFromTheCurrentItem() {
+        let store = PlaybackStore()
+        store.replaceQueue(items(2), startAt: 1)
+        XCTAssertEqual(store.lyrics.first?.text, "一句")
+        XCTAssertEqual(store.duration, 0)
     }
 }

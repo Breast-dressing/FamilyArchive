@@ -174,7 +174,14 @@ enum UIPreviewSeed {
                 artist: "Jay",
                 category: SongCategory.solo.rawValue,
                 playlistID: playlistIDs[index % playlistIDs.count],
-                sortOrder: index
+                sortOrder: index,
+                lyricsText: """
+                [00:00.00]\(title)
+                [00:04.00]窗外的麻雀 在电线杆上多嘴
+                [00:09.00]你说这一句 很有夏天的感觉
+                [00:14.00]手中的铅笔 在纸上来来回回
+                [00:19.00]我用几行字 形容你是我的谁
+                """
             )
             context.insert(song)
         }

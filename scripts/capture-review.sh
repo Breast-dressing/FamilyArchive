@@ -151,6 +151,11 @@ shot video_tab_ui.png
 launch "More (detached tab, no toolbar)" -UIPreviewMore
 shot more_tab_ui.png
 
+# Full-screen player reached by the zoom transition from the playback bar.
+launch "Player" -UIPreviewPlayer
+sleep 4
+shot player_ui.png
+
 # Date filter and plus use the same sheet API and animation.
 launch "Date filter sheet" -UIPreviewDateSheet
 sleep 3
