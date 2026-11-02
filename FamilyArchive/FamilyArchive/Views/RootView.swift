@@ -94,12 +94,6 @@ struct RootView: View {
                         )
                     )
             }
-            .task {
-                await player.restore()
-            }
-            .task(id: player.currentSong?.id) {
-                await synchronizeLyrics()
-            }
     }
 
     private var playerAwareTabs: some View {

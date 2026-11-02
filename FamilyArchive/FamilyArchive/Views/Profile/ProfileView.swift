@@ -26,6 +26,8 @@ struct ProfileView: View {
     }
 
     @Environment(AppRouter.self) private var router
+    @State private var isMusicSettingsPresented = false
+    @Namespace private var musicSettingsNamespace
 
     var body: some View {
         @Bindable var router = router
@@ -36,6 +38,7 @@ struct ProfileView: View {
                     profileCard
                     familySection
                     entryRow
+                    musicSettingsRow
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 12)
@@ -181,6 +184,44 @@ struct ProfileView: View {
             .quaternary.opacity(0.5),
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
+    }
+
+    /// 音乐设置入口：MeloX 原版 SettingsView（含网易云 cookie 登录）。
+    private var musicSettingsRow: some View {
+        Button {
+            isMusicSettingsPresented = true
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 20, weight: .medium))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("音乐设置")
+                        .font(.subheadline.weight(.semibold))
+                    Text("网易云登录、音质与歌词")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                .quaternary.opacity(0.5),
+                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $isMusicSettingsPresented) {
+            NavigationStack {
+                SettingsView()
+                    .musicDestinations(in: musicSettingsNamespace)
+            }
+            .presentationDetents([.large])
+            .presentationCornerRadius(32)
+        }
     }
 
     private var entryRow: some View {
