@@ -37,8 +37,6 @@ jobs:
             feed_search_focused_ui.png
             video_tab_ui.png
             more_tab_ui.png
-            player_ui.png
-            player_lyrics_ui.png
             date_filter_sheet_ui.png
             feed_plus_sheet_ui.png
             music_plus_sheet_ui.png

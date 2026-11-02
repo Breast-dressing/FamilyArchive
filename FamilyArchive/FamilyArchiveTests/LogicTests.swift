@@ -322,6 +322,7 @@ final class RootAccessoryStateTests: XCTestCase {
     }
 }
 
+
 final class FamilySharePayloadTests: XCTestCase {
     private func payload() -> FamilySharePayload {
         FamilySharePayload(
@@ -354,6 +355,7 @@ final class FamilySharePayloadTests: XCTestCase {
         XCTAssertGreaterThan(image?.size.width ?? 0, 0)
     }
 }
+
 
 final class BadgeSkinServiceTests: XCTestCase {
     func testParsesSkinSSR() {
@@ -462,6 +464,22 @@ final class LyricCardServiceTests: XCTestCase {
         XCTAssertEqual(parsed.first?.rarity, "SSR")
         XCTAssertEqual(parsed.first?.serials, ["A001", "A002"])
         XCTAssertEqual(parsed.first?.imageURL, "https://example.com/front.png")
+    }
+}
+
+final class BottomToolbarLayoutTests: XCTestCase {
+    func testControlOrderIsLockedToSearchDatePlus() {
+        XCTAssertEqual(BottomToolbarLayout.controls, [.search, .date, .plus])
+    }
+
+    func testControlOrderNeverChangesWithTab() {
+        for tab in RootTab.allCases {
+            XCTAssertEqual(
+                BottomToolbarLayout.controls(for: tab),
+                [.search, .date, .plus],
+                "\(tab.title) 的工具栏顺序被改动"
+            )
+        }
     }
 }
 
@@ -761,6 +779,7 @@ final class AudioFileStoreTests: XCTestCase {
     }
 }
 
+
 // MARK: - 第 2 步：三页共用顶部组件
 
 final class TopCategoryPageTests: XCTestCase {
@@ -925,183 +944,5 @@ final class ProfileLayoutTests: XCTestCase {
         let all = ProfileAccounts.all([feed, video, music])
         XCTAssertEqual(all.count, 3)
         XCTAssertEqual(all.map(\.username), ["音乐", "影视", "动态"])
-    }
-}
-
-// MARK: - 第 7、8 步：播放条与播放器
-
-
-@MainActor
-final class PlaybackStoreTests: XCTestCase {
-    private func items(_ count: Int) -> [PlaybackItem] {
-        (0..<count).map { index in
-            PlaybackItem(
-                id: "song-\(index)",
-                title: "歌\(index)",
-                subtitle: "歌手",
-                artwork: nil,
-                fileURL: nil,
-                kind: .audio,
-                lyricsText: "[00:01.00]一句"
-            )
-        }
-    }
-
-    func testQueueNavigationWraps() {
-        let store = PlaybackStore()
-        store.replaceQueue(items(3))
-
-        XCTAssertEqual(store.current?.title, "歌0")
-        store.next()
-        XCTAssertEqual(store.current?.title, "歌1")
-        store.next()
-        store.next()
-        XCTAssertEqual(store.current?.title, "歌0")
-        store.previous()
-        XCTAssertEqual(store.current?.title, "歌2")
-    }
-
-    func testEmptyQueueIsSafe() {
-        let store = PlaybackStore()
-        store.next()
-        store.previous()
-        store.toggle()
-        XCTAssertNil(store.current)
-        XCTAssertEqual(store.progress, 0)
-        XCTAssertTrue(store.lyrics.isEmpty)
-    }
-
-    func testLyricsComeFromTheCurrentItem() {
-        let store = PlaybackStore()
-        store.replaceQueue(items(2), startAt: 1)
-        XCTAssertEqual(store.lyrics.first?.text, "一句")
-        XCTAssertEqual(store.duration, 0)
-    }
-}
-
-// MARK: - Lyricify Mobile 移植：逐字、翻译、歌词源与设置
-
-
-final class LyricsServiceTests: XCTestCase {
-    func testSearchURLsAreBuilt() {
-        XCTAssertEqual(
-            LyricsService.searchURL(source: .qqMusic, keyword: "晴天")?.absoluteString.contains("client_search_cp"),
-            true
-        )
-        XCTAssertEqual(
-            LyricsService.searchURL(source: .netease, keyword: "晴天")?.absoluteString.contains("music.163.com/api/search/get"),
-            true
-        )
-        XCTAssertEqual(
-            LyricsService.searchURL(source: .kugou, keyword: "晴天")?.absoluteString.contains("krcs.kugou.com/search"),
-            true
-        )
-    }
-
-    func testSongIDExtraction() {
-        let qq = #"{"data":{"song":{"list":[{"songmid":"003OUlho2HcRHC"}]}}}"#.data(using: .utf8)!
-        XCTAssertEqual(LyricsService.songID(source: .qqMusic, from: qq), "003OUlho2HcRHC")
-
-        let netease = #"{"result":{"songs":[{"id":186016}]}}"#.data(using: .utf8)!
-        XCTAssertEqual(LyricsService.songID(source: .netease, from: netease), "186016")
-
-        let kugou = #"{"candidates":[{"id":"123","accesskey":"abc"}]}"#.data(using: .utf8)!
-        XCTAssertEqual(LyricsService.songID(source: .kugou, from: kugou), "123|abc")
-        XCTAssertEqual(
-            LyricsService.lyricURL(source: .kugou, songID: "123|abc")?.absoluteString.contains("accesskey=abc"),
-            true
-        )
-    }
-
-    func testDecodePerSource() {
-        let qq = #"{"lyric":"[00:01.00]一句","trans":"[00:01.00]one line"}"#.data(using: .utf8)!
-        XCTAssertEqual(LyricsService.decode(source: .qqMusic, from: qq)?.lyrics, "[00:01.00]一句")
-
-        let netease = #"{"lrc":{"lyric":"[00:01.00]一句"},"tlyric":{"lyric":"[00:01.00]one"}}"#.data(using: .utf8)!
-        XCTAssertEqual(LyricsService.decode(source: .netease, from: netease)?.translation, "[00:01.00]one")
-
-        let raw = "[00:01.00]一句"
-        let kugou = "{\"content\":\"\(Data(raw.utf8).base64EncodedString())\"}".data(using: .utf8)!
-        XCTAssertEqual(LyricsService.decode(source: .kugou, from: kugou)?.lyrics, raw)
-    }
-
-    func testDocumentMergesTranslationLines() {
-        let doc = LyricsService.document(
-            from: "[00:01.00]一句",
-            translation: "[00:01.00]one line"
-        )
-        XCTAssertEqual(doc.lines.first?.translation, "one line")
-        XCTAssertTrue(LyricsService.document(from: "  ", translation: nil).isInstrumental)
-    }
-}
-
-@MainActor
-final class PlayerSettingsTests: XCTestCase {
-    func testDefaultsAndPersistence() {
-        let suite = "PlayerSettings-\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        let store = PlayerSettingsStore(defaults: defaults)
-        XCTAssertEqual(store.source, .qqMusic)
-        XCTAssertTrue(store.showTranslation)
-        XCTAssertEqual(store.latency, 0)
-
-        store.source = .netease
-        store.showTranslation = false
-        store.latency = 0.4
-
-        let reloaded = PlayerSettingsStore(defaults: defaults)
-        XCTAssertEqual(reloaded.source, .netease)
-        XCTAssertFalse(reloaded.showTranslation)
-        XCTAssertEqual(reloaded.latency, 0.4, accuracy: 0.001)
-        defaults.removePersistentDomain(forName: suite)
-    }
-
-    func testFontScalesWithSettings() {
-        let defaults = UserDefaults(suiteName: "PlayerSettings-font-\(UUID().uuidString)")!
-        let store = PlayerSettingsStore(defaults: defaults)
-        store.fontScale = 1.4
-        store.boldText = false
-        XCTAssertNotNil(store.lyricFont(current: false))
-        XCTAssertEqual(store.backgroundBlurRadius, 46 * store.blurScale, accuracy: 0.001)
-    }
-}
-
-// MARK: - 上游 Lyricify Lyrics Helper 接入
-
-final class LyricifyBridgeTests: XCTestCase {
-    private let source = """
-    [00:12.50]第二行
-    [00:03.00]第一行
-    [00:30.00]第三行
-    """
-
-    func testUpstreamParsesAndKeepsOrder() {
-        let document = LyricifyBridge.document(source)
-        XCTAssertEqual(document.lines.map(\.text), ["第一行", "第二行", "第三行"])
-        XCTAssertEqual(document.lines.map(\.time), [3, 12.5, 30])
-    }
-
-    func testCurrentLineFollowsPlaybackTime() {
-        let lines = LyricifyBridge.document(source).lines
-        XCTAssertNil(LyricsAnimation.currentIndex(in: lines, at: 1))
-        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 3), 0)
-        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 20), 1)
-        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 999), 2)
-    }
-
-    func testTranslationIsMergedThroughTheService() {
-        let document = LyricsService.document(
-            from: "[00:01.00]一句",
-            translation: "[00:01.00]one line"
-        )
-        XCTAssertEqual(document.lines.first?.text, "一句")
-        XCTAssertEqual(document.lines.first?.translation, "one line")
-        XCTAssertTrue(LyricsService.document(from: "  ", translation: nil).isInstrumental)
-    }
-
-    func testTimeText() {
-        XCTAssertEqual(PlaybackTime.text(0), "0:00")
-        XCTAssertEqual(PlaybackTime.text(65.4), "1:05")
-        XCTAssertEqual(PlaybackTime.text(-3), "0:00")
     }
 }

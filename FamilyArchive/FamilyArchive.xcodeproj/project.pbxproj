@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		FA00000000000000000000D3 /* LyricifyLyricsHelper in Frameworks */ = {isa = PBXBuildFile; productRef = FA00000000000000000000D2 /* LyricifyLyricsHelper */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		FA00000000000000000000CB /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -51,7 +47,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FA00000000000000000000D3 /* LyricifyLyricsHelper in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -103,7 +98,6 @@
 			);
 			name = FamilyArchive;
 			packageProductDependencies = (
-				FA00000000000000000000D2 /* LyricifyLyricsHelper */,
 			);
 			productName = FamilyArchive;
 			productReference = FA00000000000000000000A4 /* FamilyArchive.app */;
@@ -160,9 +154,6 @@
 			);
 			mainGroup = FA00000000000000000000A2;
 			minimizedProjectReferenceProxies = 1;
-			packageReferences = (
-				FA00000000000000000000D1 /* XCRemoteSwiftPackageReference "Lyricify-Lyrics-Helper-Swift" */,
-			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FA00000000000000000000A3 /* Products */;
 			projectDirPath = "";
@@ -471,25 +462,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		FA00000000000000000000D1 /* XCRemoteSwiftPackageReference "Lyricify-Lyrics-Helper-Swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/WXRIW/Lyricify-Lyrics-Helper-Swift";
-			requirement = {
-				kind = revision;
-				revision = b387d49806847929085c1cf4a46b10ab29870b1e;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		FA00000000000000000000D2 /* LyricifyLyricsHelper */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = FA00000000000000000000D1 /* XCRemoteSwiftPackageReference "Lyricify-Lyrics-Helper-Swift" */;
-			productName = LyricifyLyricsHelper;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = FA00000000000000000000A1 /* Project object */;
 }
