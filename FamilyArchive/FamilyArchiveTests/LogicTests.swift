@@ -862,17 +862,3 @@ final class ProfileLayoutTests: XCTestCase {
         XCTAssertEqual(all.map(\.username), ["音乐", "影视", "动态"])
     }
 }
-
-// MARK: - 第 7、8 步：播放条与播放器
-
-
-@MainActor
-
-// MARK: - Lyricify Mobile 移植：逐字、翻译、歌词源与设置
-
-
-
-@MainActor
-
-// MARK: - 上游 Lyricify Lyrics Helper 接入
-
