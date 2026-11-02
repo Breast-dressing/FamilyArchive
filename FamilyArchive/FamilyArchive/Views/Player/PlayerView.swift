@@ -413,9 +413,9 @@ struct PlayerView: View {
         isLoadingLyrics = true
         defer { isLoadingLyrics = false }
 
-        let local = LRCParser.parse(item.lyricsText)
+        let local = LyricifyBridge.document(item.lyricsText)
         if !local.isEmpty {
-            document = LyricsDocument(lines: local)
+            document = local
         }
 
         let fetched = await LyricsService.load(

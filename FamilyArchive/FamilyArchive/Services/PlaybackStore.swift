@@ -43,7 +43,7 @@ final class PlaybackStore {
 
     var lyrics: [LyricLine] {
         guard let current else { return [] }
-        return LRCParser.parse(current.lyricsText)
+        return LyricifyBridge.document(current.lyricsText).lines
     }
 
     var currentLyricIndex: Int? {

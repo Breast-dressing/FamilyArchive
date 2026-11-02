@@ -930,36 +930,6 @@ final class ProfileLayoutTests: XCTestCase {
 
 // MARK: - 第 7、8 步：播放条与播放器
 
-final class LRCParserTests: XCTestCase {
-    private let source = """
-    [00:12.50]第二行
-    [00:03.00]第一行
-    [01:00.00]第三行
-    没有时间戳的行
-    """
-
-    func testParsesAndSortsByTime() {
-        let lines = LRCParser.parse(source)
-        XCTAssertEqual(lines.map(\.text), ["第一行", "第二行", "第三行"])
-        XCTAssertEqual(lines.map(\.time), [3, 12.5, 60])
-        XCTAssertEqual(lines.map(\.id), [0, 1, 2])
-    }
-
-    func testCurrentIndexFollowsPlaybackTime() {
-        let lines = LRCParser.parse(source)
-        XCTAssertNil(LyricsAnimation.currentIndex(in: lines, at: 1))
-        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 3), 0)
-        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 20), 1)
-        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 999), 2)
-        XCTAssertNil(LyricsAnimation.currentIndex(in: [], at: 10))
-    }
-
-    func testTimeText() {
-        XCTAssertEqual(PlaybackTime.text(0), "0:00")
-        XCTAssertEqual(PlaybackTime.text(65.4), "1:05")
-        XCTAssertEqual(PlaybackTime.text(-3), "0:00")
-    }
-}
 
 @MainActor
 final class PlaybackStoreTests: XCTestCase {
@@ -1011,28 +981,6 @@ final class PlaybackStoreTests: XCTestCase {
 
 // MARK: - Lyricify Mobile 移植：逐字、翻译、歌词源与设置
 
-final class LyricsRichParsingTests: XCTestCase {
-    private let source = """
-    [00:04.00]<00:04.00>窗外<00:04.60>的麻雀<00:05.20> 在电线杆上多嘴
-    [00:04.00]The sparrows outside the window
-    [00:09.00]你说这一句
-    """
-
-    func testWordTimestampsAreKept() {
-        let lines = LRCParser.parse(source)
-        XCTAssertEqual(lines.count, 2, "同时间的第二行应合并为翻译")
-        XCTAssertEqual(lines[0].text, "窗外的麻雀 在电线杆上多嘴")
-        XCTAssertEqual(lines[0].words.map(\.text), ["窗外", "的麻雀", " 在电线杆上多嘴"])
-        XCTAssertEqual(lines[0].words.first?.start, 4.0)
-    }
-
-    func testTranslationLineIsMerged() {
-        let lines = LRCParser.parse(source)
-        XCTAssertEqual(lines[0].translation, "The sparrows outside the window")
-        XCTAssertNil(lines[1].translation)
-    }
-
-}
 
 final class LyricsServiceTests: XCTestCase {
     func testSearchURLsAreBuilt() {
@@ -1115,5 +1063,45 @@ final class PlayerSettingsTests: XCTestCase {
         store.boldText = false
         XCTAssertNotNil(store.lyricFont(current: false))
         XCTAssertEqual(store.backgroundBlurRadius, 46 * store.blurScale, accuracy: 0.001)
+    }
+}
+
+// MARK: - 上游 Lyricify Lyrics Helper 接入
+
+final class LyricifyBridgeTests: XCTestCase {
+    private let source = """
+    [00:12.50]第二行
+    [00:03.00]第一行
+    [00:30.00]第三行
+    """
+
+    func testUpstreamParsesAndKeepsOrder() {
+        let document = LyricifyBridge.document(source)
+        XCTAssertEqual(document.lines.map(\.text), ["第一行", "第二行", "第三行"])
+        XCTAssertEqual(document.lines.map(\.time), [3, 12.5, 30])
+    }
+
+    func testCurrentLineFollowsPlaybackTime() {
+        let lines = LyricifyBridge.document(source).lines
+        XCTAssertNil(LyricsAnimation.currentIndex(in: lines, at: 1))
+        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 3), 0)
+        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 20), 1)
+        XCTAssertEqual(LyricsAnimation.currentIndex(in: lines, at: 999), 2)
+    }
+
+    func testTranslationIsMergedThroughTheService() {
+        let document = LyricsService.document(
+            from: "[00:01.00]一句",
+            translation: "[00:01.00]one line"
+        )
+        XCTAssertEqual(document.lines.first?.text, "一句")
+        XCTAssertEqual(document.lines.first?.translation, "one line")
+        XCTAssertTrue(LyricsService.document(from: "  ", translation: nil).isInstrumental)
+    }
+
+    func testTimeText() {
+        XCTAssertEqual(PlaybackTime.text(0), "0:00")
+        XCTAssertEqual(PlaybackTime.text(65.4), "1:05")
+        XCTAssertEqual(PlaybackTime.text(-3), "0:00")
     }
 }

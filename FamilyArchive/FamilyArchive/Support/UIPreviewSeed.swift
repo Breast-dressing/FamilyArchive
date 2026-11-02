@@ -177,9 +177,9 @@ enum UIPreviewSeed {
                 sortOrder: index,
                 lyricsText: """
                 [00:00.00]\(title)
-                [00:04.00]<00:04.00>窗外<00:04.55>的麻雀<00:05.30> 在电线杆上多嘴
+                [00:04.00]窗外的麻雀 在电线杆上多嘴
                 [00:04.00]The sparrows outside the window
-                [00:09.00]<00:09.00>你说<00:09.40>这一句<00:10.10> 很有夏天的感觉
+                [00:09.00]你说这一句 很有夏天的感觉
                 [00:09.00]What you said felt like summer
                 [00:14.00]手中的铅笔 在纸上来来回回
                 [00:14.00]The pencil in my hand goes back and forth

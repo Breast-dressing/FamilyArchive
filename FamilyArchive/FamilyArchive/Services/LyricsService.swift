@@ -95,7 +95,7 @@ enum LyricsService {
         source: LyricsSource
     ) async -> LyricsDocument {
         if !localLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return document(from: localLyrics, translation: nil)
+            return LyricifyBridge.document(localLyrics)
         }
         guard !title.isEmpty,
               let document = await fetch(title: title, artist: artist, source: source),
@@ -123,16 +123,9 @@ enum LyricsService {
         if text.isEmpty {
             return LyricsDocument(lines: [], isInstrumental: true)
         }
-        var lines = LRCParser.parse(text)
-        if let translation {
-            let translated = LRCParser.parse(translation)
-            for line in translated {
-                if let index = lines.firstIndex(where: { abs($0.time - line.time) < 0.01 }) {
-                    lines[index].translation = line.text
-                }
-            }
-        }
-        return LyricsDocument(lines: lines)
+        let document = LyricifyBridge.document(text)
+        guard let translation, !translation.isEmpty else { return document }
+        return LyricifyBridge.merging(translation: translation, into: document)
     }
 
     private static func get(_ url: URL) async -> Data? {
