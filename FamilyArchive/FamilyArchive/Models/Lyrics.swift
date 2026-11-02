@@ -59,9 +59,11 @@ enum LyricsAnimation {
             guard total > 0 else { return 1 }
             var filled = 0.0
             for (index, word) in line.words.enumerated() {
+                // 最后一个词按自身长度收口，不会被到下一行的长间隔拉长。
+                let natural = word.start + max(Double(max(word.text.count, 1)) * 0.3, 0.5)
                 let wordEnd = index + 1 < line.words.count
                     ? line.words[index + 1].start
-                    : (nextStart ?? word.start + 0.6)
+                    : min(nextStart ?? natural, natural)
                 let weight = Double(max(word.text.count, 1))
                 if time >= wordEnd {
                     filled += weight
