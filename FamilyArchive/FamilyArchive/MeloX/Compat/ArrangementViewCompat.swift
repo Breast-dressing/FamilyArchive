@@ -95,7 +95,7 @@ enum ToolbarAxisBehavior {
 }
 
 extension ToolbarItem {
-    func axisBehavior(_ behavior: ToolbarAxisBehavior) -> ToolbarItem<Void, Content> {
+    func axisBehavior(_ behavior: ToolbarAxisBehavior) -> Self {
         self
     }
 }
