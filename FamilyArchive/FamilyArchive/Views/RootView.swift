@@ -58,6 +58,15 @@ struct RootView: View {
     @State private var accessoryState = RootAccessoryState()
     @Namespace private var accessoryNamespace
 
+    // MARK: - 音乐播放器（MeloX）
+
+    @Environment(PlayerStore.self) private var player
+    @Environment(LyricsStore.self) private var lyricsStore
+    @State private var playerPresentation: PlayerPresentation?
+    @Namespace private var playerTransitionNamespace
+
+    private let playerTransitionID = "now-playing"
+
     @State private var filePickerPurpose: FilePickerPurpose?
     @State private var isFilePickerPresented = false
     @State private var isImportingHAR = false
@@ -73,6 +82,54 @@ struct RootView: View {
     }
 
     var body: some View {
+        playerAwareTabs
+            .fullScreenCover(item: $playerPresentation) { _ in
+                NowPlayingView()
+                    .presentationBackground(.clear)
+                    .presentationContentInteraction(.resizes)
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: playerTransitionID,
+                            in: playerTransitionNamespace
+                        )
+                    )
+            }
+            .task {
+                await player.restore()
+            }
+            .task(id: player.currentSong?.id) {
+                await synchronizeLyrics()
+            }
+    }
+
+    private var playerAwareTabs: some View {
+        Group {
+            if player.currentSong != nil {
+                tabs.tabViewBottomAccessory { miniPlayer }
+            } else {
+                tabs
+            }
+        }
+    }
+
+    private var miniPlayer: some View {
+        MiniPlayerView(
+            artworkTransitionID: playerTransitionID,
+            artworkTransitionNamespace: playerTransitionNamespace
+        ) {
+            playerPresentation = .nowPlaying
+        }
+    }
+
+    private func synchronizeLyrics() async {
+        let song = player.currentSong
+        let lyricSong = song?.isPodcastProgram == true ? nil : song
+        await lyricsStore.load(for: lyricSong)
+        guard !Task.isCancelled else { return }
+        player.setNowPlayingLyrics(lyricsStore.lyrics, for: lyricSong?.id)
+    }
+
+    private var tabs: some View {
         TabView(selection: $router.selectedTab) {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
                 FeedView()
@@ -360,6 +417,14 @@ struct RootView: View {
     }
 
     private var bottomBar: some View {
+        Group {
+            if player.currentSong == nil {
+                plusBar
+            }
+        }
+    }
+
+    private var plusBar: some View {
         GlassEffectContainer(spacing: 10) {
             HStack(spacing: 10) {
                 Spacer(minLength: 0)
