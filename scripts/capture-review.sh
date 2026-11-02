@@ -109,6 +109,7 @@ shot() {
 
 # Custom bottom toolbar states.
 launch "Music root (search + date + plus)" -UIPreviewMusic
+sleep 6
 shot music_tab_ui.png
 
 launch "My page sections" -UIPreviewArchive
