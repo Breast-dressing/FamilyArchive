@@ -27,7 +27,7 @@ enum RootTab: String, Hashable, CaseIterable {
         case .music:
             return "音乐"
         case .more:
-            return "更多"
+            return "个人"
         }
     }
 
@@ -40,7 +40,7 @@ enum RootTab: String, Hashable, CaseIterable {
         case .music:
             return "music.note"
         case .more:
-            return "ellipsis"
+            return "person.crop.circle"
         }
     }
 }

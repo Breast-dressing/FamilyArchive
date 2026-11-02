@@ -22,6 +22,8 @@ enum RootSheet: Identifiable {
     case feedComposer
     case videoComposer([URL])
     case musicComposer
+    case accountsAll
+    case lyricCards
 
     var id: String {
         switch self {
@@ -37,6 +39,10 @@ enum RootSheet: Identifiable {
             return "videoComposer"
         case .musicComposer:
             return "musicComposer"
+        case .accountsAll:
+            return "accountsAll"
+        case .lyricCards:
+            return "lyricCards"
         }
     }
 }
@@ -61,6 +67,7 @@ struct RootView: View {
     @State private var message: AppMessage?
 
     @State private var activeSheet: RootSheet?
+    @State private var isProfileActionsPresented = false
     @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
@@ -92,13 +99,24 @@ struct RootView: View {
             }
 
             Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
-                MoreView()
+                ProfileView()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         bottomBar
                     }
             }
         }
         .tint(.blue)
+        .confirmationDialog("添加", isPresented: $isProfileActionsPresented, titleVisibility: .visible) {
+            Button("账号") { activeSheet = .accountsAll }
+            Button("家族") {
+                Task { @MainActor in await addFamilyFromClipboard() }
+            }
+            Button("小卡") { activeSheet = .lyricCards }
+            Button("周边") {
+                message = AppMessage(title: "周边", message: "周边功能正在准备中。")
+            }
+            Button("取消", role: .cancel) {}
+        }
         .environment(router)
         .environment(pendingImports)
         .environment(dateFilterStore)
@@ -174,6 +192,14 @@ struct RootView: View {
 
             case .musicComposer:
                 MusicComposerView()
+
+            case .accountsAll:
+                AccountsView(scope: nil)
+
+            case .lyricCards:
+                NavigationStack {
+                    LyricCardsView()
+                }
             }
             }
             .navigationTransition(
@@ -408,7 +434,7 @@ struct RootView: View {
         case .video:
             activeSheet = .videoComposer([])
         case .more:
-            activeSheet = .plus(.unavailable(pageName: "更多"))
+            isProfileActionsPresented = true
         }
     }
 

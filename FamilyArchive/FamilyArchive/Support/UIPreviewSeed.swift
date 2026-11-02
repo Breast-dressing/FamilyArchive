@@ -81,6 +81,11 @@ enum UIPreviewSeed {
         seedVideoShows(in: context)
         seedMusicLibrary(in: context)
 
+        let profiles = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
+        if profiles.isEmpty {
+            context.insert(UserProfile(name: "宝宝", signature: "记录宝宝的每一天"))
+        }
+
         try? context.save()
     }
 

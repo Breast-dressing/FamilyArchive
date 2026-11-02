@@ -5,7 +5,8 @@ import SwiftUI
 import UIKit
 
 struct AccountsView: View {
-    let scope: AccountScope
+    /// nil = 显示全部账号（动态 / 影视 / 音乐）。
+    let scope: AccountScope?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -19,12 +20,20 @@ struct AccountsView: View {
     @State private var showError = false
     @State private var successMessage = ""
 
-    init(scope: AccountScope) {
+    @State private var draftScope = AccountScope.feed.rawValue
+
+    init(scope: AccountScope?) {
         self.scope = scope
     }
 
     private var filteredAccounts: [Account] {
-        accounts.filter { $0.scope == scope.rawValue }
+        guard let scope else { return accounts }
+        return accounts.filter { $0.scope == scope.rawValue }
+    }
+
+    /// 新增账号时的实际分组：固定 scope 用它，全部账号模式下用表单里的选择。
+    private var effectiveScope: AccountScope {
+        scope ?? (AccountScope(rawValue: draftScope) ?? .feed)
     }
 
     var body: some View {
@@ -38,7 +47,7 @@ struct AccountsView: View {
                     }
                 }
 
-                if scope == .music, !members.isEmpty {
+                if effectiveScope == .music, !members.isEmpty {
                     Section("从家族成员快速添加") {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 12) {
@@ -63,6 +72,14 @@ struct AccountsView: View {
                 }
 
                 Section("添加账号") {
+                    if scope == nil {
+                        Picker("分组", selection: $draftScope) {
+                            ForEach(AccountScope.allCases) { candidate in
+                                Text(candidate.title).tag(candidate.rawValue)
+                            }
+                        }
+                    }
+
                     TextField("账号", text: $draft.username)
 
                     TextField("账号 ID (enc_uin)", text: $draft.encUin)
@@ -184,7 +201,7 @@ struct AccountsView: View {
             username: member.name,
             encUin: member.memberID,
             platform: "QQ音乐",
-            scope: scope.rawValue,
+            scope: effectiveScope.rawValue,
             avatarData: nil,
             platformLogoData: nil
         )
@@ -211,7 +228,8 @@ struct AccountsView: View {
 
     private func saveAccount() {
         var issues = draft.validationIssues
-        if scope == .music, draft.encUin.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if effectiveScope == .music,
+           draft.encUin.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             issues.append("请输入账号 ID（enc_uin）")
         }
         guard issues.isEmpty else {
@@ -224,7 +242,7 @@ struct AccountsView: View {
             username: draft.username.trimmingCharacters(in: .whitespacesAndNewlines),
             encUin: draft.encUin.trimmingCharacters(in: .whitespacesAndNewlines),
             platform: draft.platform.rawValue,
-            scope: scope.rawValue,
+            scope: effectiveScope.rawValue,
             avatarData: draft.avatarData,
             platformLogoData: draft.platformLogoData
         )

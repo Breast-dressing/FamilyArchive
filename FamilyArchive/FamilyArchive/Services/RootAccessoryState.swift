@@ -37,9 +37,12 @@ enum AccountsTransitionSource {
         "accounts.\(scope.rawValue)"
     }
 
+    /// 个人页的账号入口（聚合全部 scope）。
+    static let profile = "accounts.profile"
+
     /// Every source id the app registers, for collision checks.
     static var allIDs: [String] {
-        AccountScope.allCases.map(sourceID(for:))
+        AccountScope.allCases.map(sourceID(for:)) + [profile]
     }
 }
 

@@ -488,9 +488,9 @@ final class RootTabTests: XCTestCase {
         XCTAssertEqual(RootTab.allCases, [.feed, .video, .music, .more])
     }
 
-    func testMoreTabMetadataStaysLast() {
-        XCTAssertEqual(RootTab.more.title, "更多")
-        XCTAssertEqual(RootTab.more.systemImage, "ellipsis")
+    func testProfileTabMetadataStaysLast() {
+        XCTAssertEqual(RootTab.more.title, "个人")
+        XCTAssertEqual(RootTab.more.systemImage, "person.crop.circle")
         XCTAssertEqual(RootTab.allCases.last, .more)
     }
 }
@@ -588,8 +588,10 @@ final class AccountsTransitionSourceTests: XCTestCase {
 
     func testEveryScopeHasExactlyOneSourceID() {
         let ids = AccountsTransitionSource.allIDs
-        XCTAssertEqual(ids.count, AccountScope.allCases.count)
+        // 三个 scope + 个人页的聚合入口。
+        XCTAssertEqual(ids.count, AccountScope.allCases.count + 1)
         XCTAssertEqual(Set(ids).count, ids.count)
+        XCTAssertTrue(ids.contains(AccountsTransitionSource.profile))
     }
 
     func testSourceIDsNeverCollideWithAccessoryTransitions() {
@@ -911,5 +913,36 @@ final class MusicLibraryTests: XCTestCase {
         let (_, collection, songs) = makeSongs()
         XCTAssertEqual(MusicLibrary.songs(songs, inCollection: collection).map(\.title), ["合集歌"])
         XCTAssertEqual(MusicLibrary.looseSongs(songs).map(\.title), ["零散歌"])
+    }
+}
+
+// MARK: - 第 6 步：个人页
+
+final class ProfileLayoutTests: XCTestCase {
+    func testFamilyColumnsCapAtFour() {
+        XCTAssertEqual(ProfileLayout.familyColumns(for: 0), 1)
+        XCTAssertEqual(ProfileLayout.familyColumns(for: 1), 1)
+        XCTAssertEqual(ProfileLayout.familyColumns(for: 3), 3)
+        XCTAssertEqual(ProfileLayout.familyColumns(for: 4), 4)
+        XCTAssertEqual(ProfileLayout.familyColumns(for: 9), 4)
+    }
+
+    func testAllAccountsAggregateEveryScope() {
+        let feed = Account(
+            username: "动态", platform: "微博", scope: AccountScope.feed.rawValue,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        let video = Account(
+            username: "影视", platform: "爱奇艺", scope: AccountScope.video.rawValue,
+            createdAt: Date(timeIntervalSince1970: 200)
+        )
+        let music = Account(
+            username: "音乐", platform: "QQ音乐", scope: AccountScope.music.rawValue,
+            createdAt: Date(timeIntervalSince1970: 300)
+        )
+
+        let all = ProfileAccounts.all([feed, video, music])
+        XCTAssertEqual(all.count, 3)
+        XCTAssertEqual(all.map(\.username), ["音乐", "影视", "动态"])
     }
 }
