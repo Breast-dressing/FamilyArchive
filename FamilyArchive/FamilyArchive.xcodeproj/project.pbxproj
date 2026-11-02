@@ -487,11 +487,11 @@
 /* Begin XCLocalSwiftPackageReference section */
 		FA00000000000000000000D0 /* XCLocalSwiftPackageReference "vendor/AudioStreaming" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = vendor/AudioStreaming;
+			relativePath = ../vendor/AudioStreaming;
 		};
 		FA00000000000000000000DA /* XCLocalSwiftPackageReference "vendor/QRCode" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = vendor/QRCode;
+			relativePath = ../vendor/QRCode;
 		};
 /* End XCLocalSwiftPackageReference section */
 
