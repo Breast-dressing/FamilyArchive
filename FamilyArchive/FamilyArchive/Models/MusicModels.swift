@@ -94,6 +94,8 @@ final class Song {
     var collectionID: UUID?
     var sortOrder: Int = 0
     var createdAt: Date
+    /// LRC 文本；播放器按它定位当前行。
+    var lyricsText: String = ""
 
     init(
         id: UUID = UUID(),
@@ -105,7 +107,8 @@ final class Song {
         playlistID: UUID? = nil,
         collectionID: UUID? = nil,
         sortOrder: Int = 0,
-        createdAt: Date = .now
+        createdAt: Date = .now,
+        lyricsText: String = ""
     ) {
         self.id = id
         self.title = title
@@ -117,5 +120,6 @@ final class Song {
         self.collectionID = collectionID
         self.sortOrder = sortOrder
         self.createdAt = createdAt
+        self.lyricsText = lyricsText
     }
 }
