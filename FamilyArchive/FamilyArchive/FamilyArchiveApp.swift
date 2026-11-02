@@ -46,6 +46,8 @@ struct FamilyArchiveApp: App {
 
     init() {
         let settings = AppSettings()
+        // 本项目界面是中文，MeloX 的文案也跟着固定为简体中文（默认值会随系统语言）。
+        settings.setAppLanguage(.simplifiedChinese)
         let releaseNotes = AppReleaseNotesStore(
             currentVersion: Bundle.main.appReleaseVersion,
             hadCompletedOnboarding: settings.hasCompletedOnboarding,
@@ -108,7 +110,7 @@ struct FamilyArchiveApp: App {
                 .environment(screenAwakeCoordinator)
                 .environment(releaseNotes)
                 .environment(\.effectiveLyricsRefreshRate, effectiveLyricsRefreshRate)
-                .environment(\.locale, settings.appLanguage.locale)
+                .environment(\.locale, Locale(identifier: "zh-Hans"))
                 .tint(.red)
                 .preferredColorScheme(settings.appearance.preferredColorScheme)
                 .onReceive(
