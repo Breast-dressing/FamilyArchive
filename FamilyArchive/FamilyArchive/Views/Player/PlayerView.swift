@@ -31,6 +31,7 @@ struct PlayerView: View {
     }
     @State private var document: LyricsDocument = .empty
     @State private var isLoadingLyrics = false
+    @State private var isRoutePickerPresented = false
 
     private var currentIndex: Int? {
         LyricsAnimation.currentIndex(in: document.lines, at: playback.currentTime)
@@ -65,7 +66,7 @@ struct PlayerView: View {
 
     private var backdrop: some View {
         ZStack {
-            Color.black.opacity(0.55)
+            Color.black.opacity(0.68)
             if let data = playback.current?.artwork, let image = UIImage(data: data) {
                 Image(uiImage: image)
                     .resizable()
@@ -318,10 +319,31 @@ struct PlayerView: View {
         HStack {
             panelButton(target: .lyrics, systemImage: "text.bubble")
             Spacer()
+            airPlayButton
+            Spacer()
             panelButton(target: .queue, systemImage: "list.bullet")
         }
-        .padding(.horizontal, 54)
+        .padding(.horizontal, 44)
         .padding(.bottom, 6)
+    }
+
+    /// 中间的 AirPlay 按钮，和参考图一样单独存在、不参与面板切换。
+    private var airPlayButton: some View {
+        Button {
+            isRoutePickerPresented = true
+        } label: {
+            Image(systemName: "airplayaudio")
+                .font(.system(size: 19, weight: .medium))
+                .foregroundStyle(.white.opacity(0.55))
+                .frame(width: 44, height: 40)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("AirPlay")
+        .background(
+            AirPlayPicker(isPresented: $isRoutePickerPresented)
+                .frame(width: 0, height: 0)
+        )
     }
 
     private func panelButton(target: PlayerPanel, systemImage: String) -> some View {
