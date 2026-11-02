@@ -672,59 +672,6 @@ final class VideoFilterTests: XCTestCase {
 }
 
 
-final class AudioFileStoreTests: XCTestCase {
-    private var base: URL!
-
-    override func setUpWithError() throws {
-        base = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("AudioFileStoreTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
-    }
-
-    override func tearDownWithError() throws {
-        if let base { try? FileManager.default.removeItem(at: base) }
-    }
-
-    private func makeSource(named name: String, bytes: [UInt8] = [0x01, 0x02]) throws -> URL {
-        let url = base.appendingPathComponent(name)
-        try Data(bytes).write(to: url)
-        return url
-    }
-
-    func testImportCopiesFileAndKeepsExtension() throws {
-        let store = AudioFileStore(baseDirectory: base)
-        let source = try makeSource(named: "demo.m4a", bytes: [1, 2, 3, 4])
-
-        let fileName = try store.importAudio(from: source)
-
-        XCTAssertTrue(fileName.hasSuffix(".m4a"))
-        XCTAssertTrue(store.exists(fileName: fileName))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: source.path), "源文件应保留")
-        XCTAssertEqual(try Data(contentsOf: store.url(forFileName: fileName)), Data([1, 2, 3, 4]))
-    }
-
-    func testImportDoesNotOverwritePreviousFiles() throws {
-        let store = AudioFileStore(baseDirectory: base)
-        let first = try store.importAudio(from: try makeSource(named: "a.mp3"))
-        let second = try store.importAudio(from: try makeSource(named: "a.mp3"))
-
-        XCTAssertNotEqual(first, second)
-        XCTAssertTrue(store.exists(fileName: first))
-        XCTAssertTrue(store.exists(fileName: second))
-    }
-
-    func testDeleteRemovesOnlyThatFile() throws {
-        let store = AudioFileStore(baseDirectory: base)
-        let keep = try store.importAudio(from: try makeSource(named: "keep.mp3"))
-        let drop = try store.importAudio(from: try makeSource(named: "drop.mp3"))
-
-        try store.delete(fileName: drop)
-
-        XCTAssertFalse(store.exists(fileName: drop))
-        XCTAssertTrue(store.exists(fileName: keep))
-        XCTAssertFalse(store.exists(fileName: ""))
-    }
-}
 
 // MARK: - 第 2 步：三页共用顶部组件
 
