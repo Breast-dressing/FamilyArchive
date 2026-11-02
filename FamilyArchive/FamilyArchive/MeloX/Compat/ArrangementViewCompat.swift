@@ -99,3 +99,27 @@ extension ToolbarItem {
         self
     }
 }
+
+// MARK: - iOS 27.1 的折叠屏分区查询
+
+/// iOS 27.1 的预留区域（折叠屏分区等）。27.0 SDK 上恒为空。
+struct ReservedRegion: Equatable {}
+
+enum ReservedRegionKind {
+    case division
+}
+
+struct ReservedRegionOptions: OptionSet {
+    let rawValue: Int
+
+    static let includeInactive = ReservedRegionOptions(rawValue: 1 << 0)
+}
+
+extension GeometryProxy {
+    func reservedRegions(
+        kind: ReservedRegionKind,
+        options: ReservedRegionOptions = []
+    ) -> [ReservedRegion] {
+        []
+    }
+}
