@@ -79,7 +79,6 @@ enum UIPreviewSeed {
 
         seedFeedPosts(in: context)
         seedVideoShows(in: context)
-        seedMusicLibrary(in: context)
 
         let existingProfiles = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
         if existingProfiles.isEmpty {
@@ -140,54 +139,6 @@ enum UIPreviewSeed {
                 status: spec.status.rawValue
             )
             context.insert(show)
-        }
-    }
-
-    /// 预览用音乐库：3 个自建歌单、2 个合集、3 首歌。
-    private static func seedMusicLibrary(in context: ModelContext) {
-        let existing = (try? context.fetch(FetchDescriptor<Playlist>())) ?? []
-        guard existing.isEmpty else { return }
-
-        var playlistIDs: [UUID] = []
-        for (index, name) in ["通勤", "睡前", "现场"].enumerated() {
-            let playlist = Playlist(
-                name: name,
-                coverData: previewImageData(seed: 30 + index),
-                sortOrder: index
-            )
-            context.insert(playlist)
-            playlistIDs.append(playlist.id)
-        }
-
-        for (index, name) in ["独唱合集", "清唱合集"].enumerated() {
-            let collection = SongCollection(
-                name: name,
-                coverData: previewImageData(seed: 40 + index),
-                sortOrder: index
-            )
-            context.insert(collection)
-        }
-
-        for (index, title) in ["七里香", "晴天", "稻香"].enumerated() {
-            let song = Song(
-                title: title,
-                artist: "Jay",
-                category: SongCategory.solo.rawValue,
-                playlistID: playlistIDs[index % playlistIDs.count],
-                sortOrder: index,
-                lyricsText: """
-                [00:00.00]\(title)
-                [00:04.00]窗外的麻雀 在电线杆上多嘴
-                [00:04.00]The sparrows outside the window
-                [00:09.00]你说这一句 很有夏天的感觉
-                [00:09.00]What you said felt like summer
-                [00:14.00]手中的铅笔 在纸上来来回回
-                [00:14.00]The pencil in my hand goes back and forth
-                [00:19.00]我用几行字 形容你是我的谁
-                [00:19.00]A few lines to describe who you are to me
-                """
-            )
-            context.insert(song)
         }
     }
 

@@ -21,7 +21,6 @@ enum RootSheet: Identifiable {
     case plus(PlusRoute)
     case feedComposer
     case videoComposer([URL])
-    case musicComposer
     case accountsAll
     case lyricCards
 
@@ -37,8 +36,6 @@ enum RootSheet: Identifiable {
             return "feedComposer"
         case .videoComposer:
             return "videoComposer"
-        case .musicComposer:
-            return "musicComposer"
         case .accountsAll:
             return "accountsAll"
         case .lyricCards:
@@ -59,9 +56,6 @@ struct RootView: View {
     @State private var pendingImports = PendingImportStore()
     @State private var dateFilterStore = DateFilterStore()
     @State private var accessoryState = RootAccessoryState()
-    @State private var playback = PlaybackStore()
-    @State private var playerSettings = PlayerSettingsStore()
-    @Query(sort: \Song.sortOrder) private var songs: [Song]
     @Namespace private var accessoryNamespace
 
     @State private var filePickerPurpose: FilePickerPurpose?
@@ -71,8 +65,6 @@ struct RootView: View {
 
     @State private var activeSheet: RootSheet?
     @State private var isProfileActionsPresented = false
-    @State private var isPlayerPresented = false
-    @State private var playerPanel: PlayerPanel = .cover
     @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
@@ -97,7 +89,7 @@ struct RootView: View {
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
-                MusicRootView()
+                MeloXMusicTabHost()
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         bottomBar
                     }
@@ -111,14 +103,6 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .sheet(isPresented: $isPlayerPresented) {
-            PlayerView(initialPanel: playerPanel)
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-                .navigationTransition(
-                    .zoom(sourceID: PlayerTransition.source, in: accessoryNamespace)
-                )
-        }
         .confirmationDialog("添加", isPresented: $isProfileActionsPresented, titleVisibility: .visible) {
             Button("账号") { activeSheet = .accountsAll }
             Button("家族") {
@@ -134,8 +118,6 @@ struct RootView: View {
         .environment(pendingImports)
         .environment(dateFilterStore)
         .environment(accessoryState)
-        .environment(playback)
-        .environment(playerSettings)
         .environment(\.locale, Locale(identifier: "zh_CN"))
         .onChange(of: router.selectedTab) { _, newTab in
             accessorySearchFocused = false
@@ -205,9 +187,6 @@ struct RootView: View {
             case .videoComposer(let files):
                 VideoComposerView(files: files)
 
-            case .musicComposer:
-                MusicComposerView()
-
             case .accountsAll:
                 AccountsView(scope: nil)
 
@@ -239,8 +218,7 @@ struct RootView: View {
             Text(message?.message ?? "")
         }
         .onAppear {
-            loadPlaybackQueue()
-            #if DEBUG
+                        #if DEBUG
             UIPreviewSeed.seedIfNeeded(in: modelContext)
             applyUIPreviewRoute()
             writePreviewReadyFile()
@@ -277,16 +255,15 @@ struct RootView: View {
             return
         }
 
-        let familyRoute = MusicRoute.family(family.url)
-        let memberRoute = MusicRoute.member(
+        let familyRoute = ProfileRoute.family(family.url)
+        let memberRoute = ProfileRoute.member(
             familyURL: family.url,
             memberID: "preview-member-0"
         )
 
-        func showMusic(_ path: [MusicRoute]) {
-            router.selectedTab = .music
-            router.musicSection = .archive
-            router.musicPath = path
+        func showProfile(_ path: [ProfileRoute]) {
+            router.selectedTab = .more
+            router.profilePath = path
         }
 
         if arguments.contains("-UIPreviewPending")
@@ -298,29 +275,29 @@ struct RootView: View {
         }
 
         if arguments.contains("-UIPreviewTour") {
-            showMusic([familyRoute, memberRoute])
+            showProfile([familyRoute, memberRoute])
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(5))
-                guard router.musicPath.count == 2 else { return }
-                router.musicPath = [familyRoute]
+                guard router.profilePath.count == 2 else { return }
+                router.profilePath = [familyRoute]
 
                 try? await Task.sleep(for: .seconds(5))
-                guard router.musicPath.count == 1 else { return }
-                router.musicPath = []
+                guard router.profilePath.count == 1 else { return }
+                router.profilePath = []
             }
         } else if arguments.contains("-UIPreviewMember") {
-            showMusic([familyRoute, memberRoute])
+            showProfile([familyRoute, memberRoute])
         } else if arguments.contains("-UIPreviewFamily")
             || arguments.contains("-UIPreviewPendingSheet") {
-            showMusic([familyRoute])
+            showProfile([familyRoute])
         } else if arguments.contains("-UIPreviewFans") {
-            showMusic([.fans])
+            showProfile([.fans])
         } else if arguments.contains("-UIPreviewMedals") {
-            showMusic([.medals])
+            showProfile([.medals])
         } else if arguments.contains("-UIPreviewCards") {
-            showMusic([.cards])
+            showProfile([.cards])
         } else if arguments.contains("-UIPreviewDateSheet") {
-            showMusic([])
+            showProfile([])
         } else if arguments.contains("-UIPreviewFeedSearch") {
             router.selectedTab = .feed
             accessoryState.isFeedSearchActive = true
@@ -333,8 +310,6 @@ struct RootView: View {
             }
         } else if arguments.contains("-UIPreviewMusic") {
             router.selectedTab = .music
-            router.musicSection = .music
-            router.musicPath = []
         } else if arguments.contains("-UIPreviewFeed") {
             router.selectedTab = .feed
         } else if arguments.contains("-UIPreviewVideo") {
@@ -342,8 +317,7 @@ struct RootView: View {
         } else if arguments.contains("-UIPreviewMore") {
             router.selectedTab = .more
         } else if arguments.contains("-UIPreviewArchive") {
-            router.selectedTab = .music
-            router.musicSection = .archive
+            router.selectedTab = .more
         }
 
         if arguments.contains("-UIPreviewDateSheet") {
@@ -358,24 +332,6 @@ struct RootView: View {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.2))
                 activeSheet = .feedComposer
-            }
-        }
-
-        if arguments.contains("-UIPreviewMusicPlus") {
-            showMusic([])
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.2))
-                activeSheet = .plus(.archiveActions)
-            }
-        }
-
-        if arguments.contains("-UIPreviewPlayer") || arguments.contains("-UIPreviewPlayerLyrics") {
-            router.selectedTab = .music
-            router.musicSection = .music
-            playerPanel = arguments.contains("-UIPreviewPlayerLyrics") ? .lyrics : .cover
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.2))
-                isPlayerPresented = true
             }
         }
 
@@ -404,44 +360,32 @@ struct RootView: View {
     }
 
     private var bottomBar: some View {
-        MiniPlayerBar(
-            namespace: accessoryNamespace,
-            onOpenPlayer: {
-                playerPanel = .cover
-                isPlayerPresented = true
-            },
-            onOpenQueue: {
-                playerPanel = .queue
-                isPlayerPresented = true
-            },
-            onPlusTap: { handlePlusButtonTapped() }
-        )
-    }
-
-    /// 把已导入的歌灌进播放队列；没有歌词/音源也能展示与切歌。
-    private func loadPlaybackQueue() {
-        guard playback.queue.isEmpty, !songs.isEmpty else { return }
-        let store = AudioFileStore()
-        let items = songs.map { song in
-            PlaybackItem(
-                id: song.id.uuidString,
-                title: song.title,
-                subtitle: song.artist.isEmpty ? song.category : song.artist,
-                artwork: nil,
-                fileURL: store.exists(fileName: song.fileName)
-                    ? store.url(forFileName: song.fileName)
-                    : nil,
-                kind: .audio,
-                lyricsText: song.lyricsText
-            )
+        GlassEffectContainer(spacing: 10) {
+            HStack(spacing: 10) {
+                Spacer(minLength: 0)
+                Button {
+                    handlePlusButtonTapped()
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 20, height: 20)
+                        .padding(12)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.regular.interactive(), in: Circle())
+                .accessibilityLabel("添加")
+            }
         }
-        playback.replaceQueue(items)
+        .padding(.horizontal, BottomToolbarLayout.horizontalInset)
+        .padding(.bottom, 6)
     }
 
     private func handlePlusButtonTapped() {
         switch router.selectedTab {
         case .music:
-            activeSheet = .musicComposer
+            activeSheet = .plus(.unavailable(pageName: "音乐"))
         case .feed:
             activeSheet = .feedComposer
         case .video:

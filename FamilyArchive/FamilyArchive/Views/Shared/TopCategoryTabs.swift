@@ -12,7 +12,6 @@ import SwiftUI
 enum TopCategoryPage: String, CaseIterable, Identifiable, Hashable {
     case feed = "动态"
     case video = "影视"
-    case music = "音乐"
 
     var id: String { rawValue }
     var title: String { rawValue }
@@ -21,7 +20,6 @@ enum TopCategoryPage: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .feed: return FeedFilter.tags
         case .video: return VideoFilter.tags
-        case .music: return SongFilter.tags
         }
     }
 

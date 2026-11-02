@@ -91,7 +91,7 @@ struct FamilyDetailView: View {
                 } else {
                     ForEach(members) { member in
                         NavigationLink(
-                            value: MusicRoute.member(
+                            value: ProfileRoute.member(
                                 familyURL: familyURL,
                                 memberID: member.memberID
                             )

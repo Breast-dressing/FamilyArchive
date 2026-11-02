@@ -45,15 +45,8 @@ enum RootTab: String, Hashable, CaseIterable {
     }
 }
 
-/// The two tabs of the native segmented control in the Music toolbar.
-enum MusicSection: String, Hashable, CaseIterable {
-    case music = "Music"
-    case archive = "Archive"
-}
-
-/// Value-based Music navigation stack. Member pages are real path values so
-/// RootView can keep the bottom accessory in sync for every push and pop.
-enum MusicRoute: Hashable {
+/// 个人页的导航路径（家族 / 成员 / 乐迷 / 勋章 / 卡牌）。
+enum ProfileRoute: Hashable {
     case family(String)
     case member(familyURL: String, memberID: String)
     case fans
@@ -79,11 +72,9 @@ enum PlusRoute: Identifiable, Equatable {
 @Observable
 final class AppRouter {
     var selectedTab: RootTab = .feed
-    var musicSection: MusicSection = .music
 
-    /// Routes pushed on the Music tab's navigation stack. When non-empty the
-    /// user is on a family or member page, which hides the custom bottom bar.
-    var musicPath: [MusicRoute] = []
+    /// 个人页的导航路径。
+    var profilePath: [ProfileRoute] = []
 
     /// True while a post detail is pushed on the Feed tab.
     var isFeedDetailActive = false

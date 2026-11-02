@@ -7,7 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		FA00000000000000000000D3 /* LyricifyLyricsHelper in Frameworks */ = {isa = PBXBuildFile; productRef = FA00000000000000000000D2 /* LyricifyLyricsHelper */; };
+		FA00000000000000000000D3 /* AudioStreaming in Frameworks */ = {isa = PBXBuildFile; productRef = FA00000000000000000000D2 /* AudioStreaming */; };
+		FA00000000000000000000D5 /* QRCode in Frameworks */ = {isa = PBXBuildFile; productRef = FA00000000000000000000D4 /* QRCode */; };
+		FA00000000000000000000D7 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = FA00000000000000000000D6 /* GRDB */; };
+		FA00000000000000000000D9 /* NukeUI in Frameworks */ = {isa = PBXBuildFile; productRef = FA00000000000000000000D8 /* NukeUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,7 +54,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FA00000000000000000000D3 /* LyricifyLyricsHelper in Frameworks */,
+				FA00000000000000000000D3 /* AudioStreaming in Frameworks */,
+				FA00000000000000000000D5 /* QRCode in Frameworks */,
+				FA00000000000000000000D7 /* GRDB in Frameworks */,
+				FA00000000000000000000D9 /* NukeUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -103,7 +109,10 @@
 			);
 			name = FamilyArchive;
 			packageProductDependencies = (
-				FA00000000000000000000D2 /* LyricifyLyricsHelper */,
+				FA00000000000000000000D2 /* AudioStreaming */,
+				FA00000000000000000000D4 /* QRCode */,
+				FA00000000000000000000D6 /* GRDB */,
+				FA00000000000000000000D8 /* NukeUI */,
 			);
 			productName = FamilyArchive;
 			productReference = FA00000000000000000000A4 /* FamilyArchive.app */;
@@ -161,7 +170,10 @@
 			mainGroup = FA00000000000000000000A2;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FA00000000000000000000D1 /* XCRemoteSwiftPackageReference "Lyricify-Lyrics-Helper-Swift" */,
+				FA00000000000000000000D0 /* XCLocalSwiftPackageReference "vendor/AudioStreaming" */,
+				FA00000000000000000000DA /* XCLocalSwiftPackageReference "vendor/QRCode" */,
+				FA00000000000000000000DB /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+				FA00000000000000000000DC /* XCRemoteSwiftPackageReference "Nuke" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = FA00000000000000000000A3 /* Products */;
@@ -472,24 +484,60 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		FA00000000000000000000D0 /* XCLocalSwiftPackageReference "vendor/AudioStreaming" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = vendor/AudioStreaming;
+		};
+		FA00000000000000000000DA /* XCLocalSwiftPackageReference "vendor/QRCode" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = vendor/QRCode;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
-		FA00000000000000000000D1 /* XCRemoteSwiftPackageReference "Lyricify-Lyrics-Helper-Swift" */ = {
+		FA00000000000000000000DB /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/WXRIW/Lyricify-Lyrics-Helper-Swift";
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
 			requirement = {
-				kind = revision;
-				revision = b387d49806847929085c1cf4a46b10ab29870b1e;
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.11.1;
+			};
+		};
+		FA00000000000000000000DC /* XCRemoteSwiftPackageReference "Nuke" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kean/Nuke.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 13.0.6;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		FA00000000000000000000D2 /* LyricifyLyricsHelper */ = {
+		FA00000000000000000000D2 /* AudioStreaming */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = FA00000000000000000000D1 /* XCRemoteSwiftPackageReference "Lyricify-Lyrics-Helper-Swift" */;
-			productName = LyricifyLyricsHelper;
+			package = FA00000000000000000000D0 /* XCLocalSwiftPackageReference "vendor/AudioStreaming" */;
+			productName = AudioStreaming;
+		};
+		FA00000000000000000000D4 /* QRCode */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA00000000000000000000DA /* XCLocalSwiftPackageReference "vendor/QRCode" */;
+			productName = QRCode;
+		};
+		FA00000000000000000000D6 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA00000000000000000000DB /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
+		FA00000000000000000000D8 /* NukeUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA00000000000000000000DC /* XCRemoteSwiftPackageReference "Nuke" */;
+			productName = NukeUI;
 		};
 /* End XCSwiftPackageProductDependency section */
+
+
 	};
 	rootObject = FA00000000000000000000A1 /* Project object */;
 }

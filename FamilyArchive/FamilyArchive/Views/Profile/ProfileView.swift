@@ -25,8 +25,12 @@ struct ProfileView: View {
         )
     }
 
+    @Environment(AppRouter.self) private var router
+
     var body: some View {
-        NavigationStack {
+        @Bindable var router = router
+
+        NavigationStack(path: $router.profilePath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     profileCard
@@ -63,7 +67,7 @@ struct ProfileView: View {
                         )
                     )
             }
-            .navigationDestination(for: MusicRoute.self) { route in
+            .navigationDestination(for: ProfileRoute.self) { route in
                 switch route {
                 case .family(let familyURL):
                     FamilyDetailView(familyURL: familyURL)
@@ -102,7 +106,7 @@ struct ProfileView: View {
                 Spacer(minLength: 0)
             }
 
-            NavigationLink(value: MusicRoute.fans) {
+            NavigationLink(value: ProfileRoute.fans) {
                 HStack(spacing: 10) {
                     Image(systemName: "person.2.fill")
                     Text("乐迷")
@@ -150,7 +154,7 @@ struct ProfileView: View {
             } else {
                 LazyVGrid(columns: familyColumns, alignment: .leading, spacing: 10) {
                     ForEach(families) { family in
-                        NavigationLink(value: MusicRoute.family(family.url)) {
+                        NavigationLink(value: ProfileRoute.family(family.url)) {
                             familyTile(family)
                         }
                         .buttonStyle(.plain)
@@ -200,7 +204,7 @@ struct ProfileView: View {
         title: String,
         subtitle: String,
         systemImage: String,
-        route: MusicRoute
+        route: ProfileRoute
     ) -> some View {
         NavigationLink(value: route) {
             HStack(spacing: 10) {
