@@ -19,6 +19,8 @@ struct ArrangementView<Primary: View, Secondary: View>: View {
     let primary: Primary
     let secondary: Secondary
 
+    @Environment(\.splitArrangementRatio) private var environmentSplitRatio
+
     private var style: ArrangementViewStyle = .overlay
     private var splitRatio: CGFloat = 0.5
 
@@ -41,7 +43,10 @@ struct ArrangementView<Primary: View, Secondary: View>: View {
             GeometryReader { proxy in
                 HStack(spacing: 0) {
                     primary
-                        .frame(width: proxy.size.width * splitRatio)
+                        .frame(
+                            width: proxy.size.width
+                                * (environmentSplitRatio ?? splitRatio)
+                        )
                     secondary
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -59,5 +64,38 @@ struct ArrangementView<Primary: View, Secondary: View>: View {
         var copy = self
         copy.splitRatio = ratio
         return copy
+    }
+}
+
+// MARK: - iOS 27.1 SDK 缺失的修饰符
+
+private struct SplitArrangementRatioKey: EnvironmentKey {
+    static let defaultValue: CGFloat? = nil
+}
+
+extension EnvironmentValues {
+    var splitArrangementRatio: CGFloat? {
+        get { self[SplitArrangementRatioKey.self] }
+        set { self[SplitArrangementRatioKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// iOS 27.1 的 `ArrangementView` 子视图配比修饰符；在低版本 SDK 上用环境值携带。
+    func splitArrangementLayoutRatio(_ ratio: CGFloat) -> some View {
+        environment(\.splitArrangementRatio, ratio)
+    }
+}
+
+/// iOS 27.1 的 toolbar 轴向偏好；27.0 SDK 上按默认行为处理。
+enum ToolbarAxisBehavior {
+    case verticalPreferred
+    case horizontalPreferred
+    case automatic
+}
+
+extension ToolbarItem {
+    func axisBehavior(_ behavior: ToolbarAxisBehavior) -> ToolbarItem<Void, Content> {
+        self
     }
 }
