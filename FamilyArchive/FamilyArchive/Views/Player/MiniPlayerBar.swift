@@ -6,10 +6,10 @@ import UIKit
 struct MiniPlayerBar: View {
     let namespace: Namespace.ID
     let onOpenPlayer: () -> Void
+    let onOpenQueue: () -> Void
     let onPlusTap: () -> Void
 
     @Environment(PlaybackStore.self) private var playback
-    @State private var isQueuePresented = false
 
     var body: some View {
         GlassEffectContainer(spacing: 10) {
@@ -20,9 +20,6 @@ struct MiniPlayerBar: View {
         }
         .padding(.horizontal, BottomToolbarLayout.horizontalInset)
         .padding(.bottom, 6)
-        .sheet(isPresented: $isQueuePresented) {
-            PlaybackQueueView()
-        }
     }
 
     private var playerCapsule: some View {
@@ -95,7 +92,7 @@ struct MiniPlayerBar: View {
             }
             .accessibilityLabel("下一首")
 
-            Button(action: { isQueuePresented = true }) {
+            Button(action: onOpenQueue) {
                 Image(systemName: "list.bullet")
                     .font(.system(size: 14, weight: .semibold))
             }
@@ -118,52 +115,5 @@ struct MiniPlayerBar: View {
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: Circle())
         .accessibilityLabel("添加")
-    }
-}
-
-/// 播放列表面板，播放条与播放器共用。
-struct PlaybackQueueView: View {
-    @Environment(PlaybackStore.self) private var playback
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            List {
-                ForEach(Array(playback.queue.enumerated()), id: \.offset) { offset, item in
-                    Button {
-                        playback.select(offset)
-                        playback.play()
-                    } label: {
-                        HStack(spacing: 10) {
-                            Text("\(offset + 1)")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
-                                .frame(width: 22, alignment: .trailing)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.title)
-                                    .font(.body)
-                                Text(item.subtitle)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                            if offset == playback.index {
-                                Image(systemName: "waveform")
-                                    .foregroundStyle(.tint)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .navigationTitle("播放列表")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
     }
 }

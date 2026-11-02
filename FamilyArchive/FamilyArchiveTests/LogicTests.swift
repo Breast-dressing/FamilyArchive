@@ -322,7 +322,6 @@ final class RootAccessoryStateTests: XCTestCase {
     }
 }
 
-
 final class FamilySharePayloadTests: XCTestCase {
     private func payload() -> FamilySharePayload {
         FamilySharePayload(
@@ -355,7 +354,6 @@ final class FamilySharePayloadTests: XCTestCase {
         XCTAssertGreaterThan(image?.size.width ?? 0, 0)
     }
 }
-
 
 final class BadgeSkinServiceTests: XCTestCase {
     func testParsesSkinSSR() {
@@ -763,7 +761,6 @@ final class AudioFileStoreTests: XCTestCase {
     }
 }
 
-
 // MARK: - 第 2 步：三页共用顶部组件
 
 final class TopCategoryPageTests: XCTestCase {
@@ -1035,28 +1032,6 @@ final class LyricsRichParsingTests: XCTestCase {
         XCTAssertNil(lines[1].translation)
     }
 
-    func testFillProgressLineAndWords() {
-        let lines = LRCParser.parse(source)
-        let wordLine = lines[0]
-
-        XCTAssertEqual(
-            LyricsAnimation.fillProgress(for: wordLine, at: 2, nextStart: 9),
-            0
-        )
-        XCTAssertEqual(
-            LyricsAnimation.fillProgress(
-                for: LyricLine(id: 0, time: 0, text: "一二三四"),
-                at: 2,
-                nextStart: 4
-            ),
-            0.5,
-            accuracy: 0.001
-        )
-        let half = LyricsAnimation.fillProgress(for: wordLine, at: 4.3, nextStart: 9)
-        XCTAssertGreaterThan(half, 0)
-        XCTAssertLessThan(half, 1)
-        XCTAssertEqual(LyricsAnimation.fillProgress(for: wordLine, at: 30, nextStart: 40), 1)
-    }
 }
 
 final class LyricsServiceTests: XCTestCase {

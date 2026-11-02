@@ -46,39 +46,6 @@ struct LyricsDocument: Equatable {
 }
 
 enum LyricsAnimation {
-    /// 当前行已唱到多少（0…1）。逐字时按字宽累计，逐行时按本行到下一行的时间。
-    static func fillProgress(
-        for line: LyricLine,
-        at time: Double,
-        nextStart: Double?
-    ) -> Double {
-        guard time >= line.time else { return 0 }
-
-        if !line.words.isEmpty {
-            let total = line.words.reduce(0) { $0 + max($1.text.count, 1) }
-            guard total > 0 else { return 1 }
-            var filled = 0.0
-            for (index, word) in line.words.enumerated() {
-                // 最后一个词按自身长度收口，不会被到下一行的长间隔拉长。
-                let natural = word.start + max(Double(max(word.text.count, 1)) * 0.3, 0.5)
-                let wordEnd = index + 1 < line.words.count
-                    ? line.words[index + 1].start
-                    : min(nextStart ?? natural, natural)
-                let weight = Double(max(word.text.count, 1))
-                if time >= wordEnd {
-                    filled += weight
-                } else if time > word.start {
-                    filled += weight * ((time - word.start) / max(wordEnd - word.start, 0.01))
-                }
-            }
-            return min(max(filled / Double(total), 0), 1)
-        }
-
-        let end = nextStart ?? line.time + 4
-        guard end > line.time else { return 1 }
-        return min(max((time - line.time) / (end - line.time), 0), 1)
-    }
-
     /// 当前行：最后一条 `time <= current`；早于第一行时为 nil。
     static func currentIndex(in lines: [LyricLine], at time: Double) -> Int? {
         guard let first = lines.first, time >= first.time else { return nil }

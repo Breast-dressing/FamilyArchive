@@ -27,6 +27,13 @@ final class PlaybackStore {
     private(set) var currentTime: Double = 0
     private(set) var duration: Double = 0
 
+    /// 播放器音量（0…1），对应播放器页的音量条。
+    var volume: Double = 0.7 {
+        didSet {
+            player?.volume = Float(min(max(volume, 0), 1))
+        }
+    }
+
     private var player: AVAudioPlayer?
     private var ticker: Timer?
 
@@ -126,6 +133,7 @@ final class PlaybackStore {
         guard let current, current.kind == .audio, let url = current.fileURL else { return }
         guard let newPlayer = try? AVAudioPlayer(contentsOf: url) else { return }
         newPlayer.prepareToPlay()
+        newPlayer.volume = Float(min(max(volume, 0), 1))
         player = newPlayer
         duration = newPlayer.duration
 

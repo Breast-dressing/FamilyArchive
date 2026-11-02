@@ -72,6 +72,7 @@ struct RootView: View {
     @State private var activeSheet: RootSheet?
     @State private var isProfileActionsPresented = false
     @State private var isPlayerPresented = false
+    @State private var playerPanel: PlayerPanel = .cover
     @FocusState private var accessorySearchFocused: Bool
 
     private enum FilePickerPurpose {
@@ -110,8 +111,10 @@ struct RootView: View {
             }
         }
         .tint(.blue)
-        .fullScreenCover(isPresented: $isPlayerPresented) {
-            PlayerView()
+        .sheet(isPresented: $isPlayerPresented) {
+            PlayerView(initialPanel: playerPanel)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
                 .navigationTransition(
                     .zoom(sourceID: PlayerTransition.source, in: accessoryNamespace)
                 )
@@ -366,9 +369,10 @@ struct RootView: View {
             }
         }
 
-        if arguments.contains("-UIPreviewPlayer") {
+        if arguments.contains("-UIPreviewPlayer") || arguments.contains("-UIPreviewPlayerLyrics") {
             router.selectedTab = .music
             router.musicSection = .music
+            playerPanel = arguments.contains("-UIPreviewPlayerLyrics") ? .lyrics : .cover
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.2))
                 isPlayerPresented = true
@@ -402,7 +406,14 @@ struct RootView: View {
     private var bottomBar: some View {
         MiniPlayerBar(
             namespace: accessoryNamespace,
-            onOpenPlayer: { isPlayerPresented = true },
+            onOpenPlayer: {
+                playerPanel = .cover
+                isPlayerPresented = true
+            },
+            onOpenQueue: {
+                playerPanel = .queue
+                isPlayerPresented = true
+            },
             onPlusTap: { handlePlusButtonTapped() }
         )
     }
