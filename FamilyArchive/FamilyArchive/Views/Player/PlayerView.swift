@@ -133,20 +133,26 @@ struct PlayerView: View {
 
     private var progressRow: some View {
         VStack(spacing: 4) {
-            Slider(
-                value: Binding(
-                    get: { scrubProgress ?? playback.progress },
-                    set: { scrubProgress = $0 }
-                ),
-                in: 0...1,
-                onEditingChanged: { editing in
-                    if !editing, let value = scrubProgress {
+            if playback.duration > 0 {
+                Slider(
+                    value: Binding(
+                        get: { scrubProgress ?? playback.progress },
+                        set: { scrubProgress = $0 }
+                    ),
+                    in: 0...1,
+                    onEditingChanged: { editing in
+                        guard !editing, let value = scrubProgress else { return }
                         playback.seek(toProgress: value)
                         scrubProgress = nil
                     }
-                }
-            )
-            .tint(.white)
+                )
+                .tint(.white)
+            } else {
+                // 没有音源时不给一个可拖的空滑块。
+                Capsule()
+                    .fill(.white.opacity(0.22))
+                    .frame(height: 5)
+            }
 
             HStack {
                 Text(PlaybackTime.text(currentTime))
