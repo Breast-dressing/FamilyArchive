@@ -12,13 +12,3 @@ struct MoreView: View {
         }
     }
 }
-
-struct MusicHomeView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "音乐",
-            systemImage: "music.note",
-            description: Text("切换到“档案”管理家族并导入家族记录文件。")
-        )
-    }
-}

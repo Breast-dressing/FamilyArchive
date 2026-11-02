@@ -21,6 +21,7 @@ enum RootSheet: Identifiable {
     case plus(PlusRoute)
     case feedComposer
     case videoComposer([URL])
+    case musicComposer
 
     var id: String {
         switch self {
@@ -34,6 +35,8 @@ enum RootSheet: Identifiable {
             return "feedComposer"
         case .videoComposer:
             return "videoComposer"
+        case .musicComposer:
+            return "musicComposer"
         }
     }
 }
@@ -168,6 +171,9 @@ struct RootView: View {
 
             case .videoComposer(let files):
                 VideoComposerView(files: files)
+
+            case .musicComposer:
+                MusicComposerView()
             }
             }
             .navigationTransition(
@@ -394,11 +400,7 @@ struct RootView: View {
     private func handlePlusButtonTapped() {
         switch router.selectedTab {
         case .music:
-            if router.musicSection == .archive {
-                activeSheet = .plus(.archiveActions)
-            } else {
-                activeSheet = .plus(.unavailable(pageName: "音乐"))
-            }
+            activeSheet = .musicComposer
         case .feed:
             activeSheet = .feedComposer
         case .video:

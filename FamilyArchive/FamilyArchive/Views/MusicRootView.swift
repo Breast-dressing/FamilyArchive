@@ -50,7 +50,7 @@ struct MusicRootView: View {
                 .padding(.horizontal)
 
                 ZStack {
-                    MusicHomeView()
+                    MusicLibraryView()
                         .opacity(router.musicSection == .music ? 1 : 0)
                         .allowsHitTesting(router.musicSection == .music)
 

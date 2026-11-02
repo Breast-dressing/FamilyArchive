@@ -79,6 +79,7 @@ enum UIPreviewSeed {
 
         seedFeedPosts(in: context)
         seedVideoShows(in: context)
+        seedMusicLibrary(in: context)
 
         try? context.save()
     }
@@ -134,6 +135,43 @@ enum UIPreviewSeed {
                 status: spec.status.rawValue
             )
             context.insert(show)
+        }
+    }
+
+    /// 预览用音乐库：3 个自建歌单、2 个合集、3 首歌。
+    private static func seedMusicLibrary(in context: ModelContext) {
+        let existing = (try? context.fetch(FetchDescriptor<Playlist>())) ?? []
+        guard existing.isEmpty else { return }
+
+        var playlistIDs: [UUID] = []
+        for (index, name) in ["通勤", "睡前", "现场"].enumerated() {
+            let playlist = Playlist(
+                name: name,
+                coverData: previewImageData(seed: 30 + index),
+                sortOrder: index
+            )
+            context.insert(playlist)
+            playlistIDs.append(playlist.id)
+        }
+
+        for (index, name) in ["独唱合集", "清唱合集"].enumerated() {
+            let collection = SongCollection(
+                name: name,
+                coverData: previewImageData(seed: 40 + index),
+                sortOrder: index
+            )
+            context.insert(collection)
+        }
+
+        for (index, title) in ["七里香", "晴天", "稻香"].enumerated() {
+            let song = Song(
+                title: title,
+                artist: "Jay",
+                category: SongCategory.solo.rawValue,
+                playlistID: playlistIDs[index % playlistIDs.count],
+                sortOrder: index
+            )
+            context.insert(song)
         }
     }
 

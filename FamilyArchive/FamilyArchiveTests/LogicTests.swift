@@ -881,3 +881,35 @@ final class VideoLayoutTests: XCTestCase {
         XCTAssertEqual(VideoLayout.featured(in: shows)?.title, "待播一")
     }
 }
+
+// MARK: - 第 5 步：音乐页
+
+final class MusicLibraryTests: XCTestCase {
+    private func makeSongs() -> (playlist: UUID, collection: UUID, songs: [Song]) {
+        let playlist = UUID()
+        let collection = UUID()
+        let songs = [
+            Song(title: "三", playlistID: playlist, sortOrder: 2),
+            Song(title: "一", playlistID: playlist, sortOrder: 0),
+            Song(title: "合集歌", collectionID: collection),
+            Song(title: "零散歌")
+        ]
+        return (playlist, collection, songs)
+    }
+
+    func testPlaylistsUseThreeColumns() {
+        XCTAssertEqual(MusicLayout.playlistColumns, 3)
+        XCTAssertGreaterThan(MusicLayout.collectionCardHeight, 0)
+    }
+
+    func testSongsInPlaylistFollowSortOrder() {
+        let (playlist, _, songs) = makeSongs()
+        XCTAssertEqual(MusicLibrary.songs(songs, inPlaylist: playlist).map(\.title), ["一", "三"])
+    }
+
+    func testSongsInCollectionAndLooseSongs() {
+        let (_, collection, songs) = makeSongs()
+        XCTAssertEqual(MusicLibrary.songs(songs, inCollection: collection).map(\.title), ["合集歌"])
+        XCTAssertEqual(MusicLibrary.looseSongs(songs).map(\.title), ["零散歌"])
+    }
+}
