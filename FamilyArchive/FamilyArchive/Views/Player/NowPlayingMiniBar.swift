@@ -20,7 +20,8 @@ struct NowPlayingMiniBar: View {
                 .frame(width: 0)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
+        .padding(.trailing, 7)
         .padding(.bottom, 4)
     }
 
@@ -48,10 +49,10 @@ struct NowPlayingMiniBar: View {
 
             controls
         }
-        .padding(.leading, 10)
+        .padding(.leading, 14)
         .padding(.trailing, 8)
-        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
+        .frame(height: 44)
         .glassEffect(.regular.interactive(), in: Capsule())
     }
 
