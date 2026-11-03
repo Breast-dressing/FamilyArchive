@@ -118,10 +118,8 @@ struct NowPlayingMiniBar: View {
     private var plusButton: some View {
         Button(action: onPlus) {
             Image(systemName: "plus")
-                .font(.system(size: 20, weight: .medium))
                 .foregroundStyle(.primary)
-                .frame(width: 20, height: 20)
-                .padding(12)
+                .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

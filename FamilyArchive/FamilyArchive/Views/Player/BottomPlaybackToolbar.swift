@@ -8,12 +8,10 @@ extension View {
     ) -> some View {
         self.toolbar {
             ToolbarItem(placement: .bottomBar) {
-                HStack(spacing: 0) {
-                    NowPlayingMiniBar(onOpen: onOpen, onPlus: onPlus)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity)
+                NowPlayingMiniBar(onOpen: onOpen, onPlus: onPlus)
+                    .frame(maxWidth: .infinity)
             }
+            .sharedBackgroundVisibility(.hidden)
         }
         .toolbarBackground(.hidden, for: .bottomBar)
     }
