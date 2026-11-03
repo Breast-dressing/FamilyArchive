@@ -4,7 +4,6 @@ import SwiftUI
 /// 抓杆 → 深灰方块占位封面（中间音符）→「未在播放」→ 灰色细进度条 + 虚线时间
 /// → 上一首 / 播放 / 下一首 → 分隔线 → 音量条 → 底部三个图标（气泡 / 波纹 / 列表）。
 struct EmptyNowPlayingView: View {
-    @Environment(\.dismiss) private var dismiss
     @State private var volume: Double = 0.7
 
     var body: some View {
@@ -12,10 +11,7 @@ struct EmptyNowPlayingView: View {
             Color(white: 0.42).ignoresSafeArea()
 
             VStack(spacing: 0) {
-                grabber
-                    .padding(.top, 8)
-
-                Spacer(minLength: 12)
+                Spacer(minLength: 28)
 
                 artwork
                     .padding(.horizontal, 40)
@@ -30,16 +26,8 @@ struct EmptyNowPlayingView: View {
                 bottomBar
             }
             .padding(.bottom, 8)
-
-            dismissButton
         }
         .environment(\.colorScheme, .dark)
-    }
-
-    private var grabber: some View {
-        Capsule()
-            .fill(.black.opacity(0.22))
-            .frame(width: 118, height: 5)
     }
 
     private var artwork: some View {
@@ -159,27 +147,5 @@ struct EmptyNowPlayingView: View {
         .foregroundStyle(.white.opacity(0.55))
         .padding(.horizontal, 44)
         .padding(.bottom, 6)
-    }
-
-    private var dismissButton: some View {
-        VStack {
-            HStack {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.9))
-                        .frame(width: 36, height: 36)
-                        .background(Circle().fill(.white.opacity(0.12)))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("收起播放器")
-                Spacer()
-            }
-            Spacer()
-        }
-        .padding(.leading, 20)
-        .padding(.top, 8)
     }
 }

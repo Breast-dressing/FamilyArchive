@@ -86,23 +86,14 @@ struct RootView: View {
             .task(id: player.currentSong?.id) {
                 await synchronizeLyrics()
             }
-            .fullScreenCover(item: $playerPresentation) { _ in
-                Group {
-                    if player.currentSong == nil {
-                        EmptyNowPlayingView()
-                    } else {
-                        NowPlayingView()
-                            .presentationBackground(.clear)
-                            .presentationContentInteraction(.resizes)
-                            .navigationTransition(
-                                .zoom(
-                                    sourceID: playerTransitionID,
-                                    in: playerTransitionNamespace
-                                )
-                            )
-                    }
-                }
-            }
+            .modifier(
+                PlayerPresentationModifier(
+                    item: $playerPresentation,
+                    hasSong: player.currentSong != nil,
+                    transitionID: playerTransitionID,
+                    namespace: playerTransitionNamespace
+                )
+            )
     }
 
     private var playerAwareTabs: some View {
