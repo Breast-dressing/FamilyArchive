@@ -112,6 +112,11 @@ launch "Music root (search + date + plus)" -UIPreviewMusic
 sleep 6
 shot music_tab_ui.png
 
+# 空状态下也能进播放器
+launch "Player empty state" -UIPreviewPlayerEmpty
+sleep 4
+shot player_empty_ui.png
+
 launch "My page sections" -UIPreviewArchive
 shot my_page_sections_ui.png
 

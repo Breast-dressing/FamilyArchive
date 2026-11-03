@@ -93,15 +93,36 @@ struct RootView: View {
                             in: playerTransitionNamespace
                         )
                     )
+                    .overlay(alignment: .topLeading) {
+                        if player.currentSong == nil {
+                            Button {
+                                playerPresentation = nil
+                            } label: {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .frame(width: 36, height: 36)
+                                    .background(
+                                        Circle().fill(.white.opacity(0.14))
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.leading, 20)
+                            .padding(.top, 8)
+                            .accessibilityLabel("收起播放器")
+                        }
+                    }
             }
     }
 
     private var playerAwareTabs: some View {
-        Group {
+        tabs.tabViewBottomAccessory {
             if player.currentSong != nil {
-                tabs.tabViewBottomAccessory { miniPlayer }
+                miniPlayer
             } else {
-                tabs
+                EmptyPlayerBar {
+                    playerPresentation = .nowPlaying
+                }
             }
         }
     }
@@ -386,6 +407,14 @@ struct RootView: View {
             }
         }
 
+        if arguments.contains("-UIPreviewPlayerEmpty") {
+            router.selectedTab = .music
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.2))
+                playerPresentation = .nowPlaying
+            }
+        }
+
         if arguments.contains("-UIPreviewPendingSheet") {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(1.2))
@@ -411,11 +440,7 @@ struct RootView: View {
     }
 
     private var bottomBar: some View {
-        Group {
-            if player.currentSong == nil {
-                plusBar
-            }
-        }
+        plusBar
     }
 
     private var plusBar: some View {
