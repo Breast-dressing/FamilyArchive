@@ -24,10 +24,8 @@ struct NowPlayingMiniBar: View {
         HStack(spacing: 10) {
             capsule
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .recordPlaybackFrame(.capsule)
             plusButton
                 .fixedSize()
-                .recordPlaybackFrame(.plus)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, layoutMargin)
