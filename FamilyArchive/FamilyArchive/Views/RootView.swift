@@ -86,25 +86,27 @@ struct RootView: View {
             .task(id: player.currentSong?.id) {
                 await synchronizeLyrics()
             }
-            .modifier(
-                PlayerPresentationModifier(
-                    item: $playerPresentation,
-                    hasSong: player.currentSong != nil,
-                    transitionID: playerTransitionID,
-                    namespace: playerTransitionNamespace
-                )
-            )
+            .fullScreenCover(item: $playerPresentation) { _ in
+                NowPlayingView()
+                    .presentationBackground(.clear)
+                    .presentationContentInteraction(.resizes)
+                    .navigationTransition(
+                        .zoom(
+                            sourceID: playerTransitionID,
+                            in: playerTransitionNamespace
+                        )
+                    )
+            }
     }
 
     private var playerAwareTabs: some View {
-        tabs.tabViewBottomAccessory {
-            NowPlayingMiniBar(
-                onOpen: { playerPresentation = .nowPlaying },
-                onPlus: { handlePlusButtonTapped() }
-            )
-        }
+        tabs
     }
 
+
+    private func openPlayer() {
+        playerPresentation = .nowPlaying
+    }
 
     private func synchronizeLyrics() async {
         let song = player.currentSong
@@ -118,18 +120,22 @@ struct RootView: View {
         TabView(selection: $router.selectedTab) {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
                 FeedView()
+                    .bottomPlaybackToolbar(onOpen: openPlayer, onPlus: handlePlusButtonTapped)
             }
 
             Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
                 VideoView()
+                    .bottomPlaybackToolbar(onOpen: openPlayer, onPlus: handlePlusButtonTapped)
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
                 MeloXMusicTabHost()
+                    .bottomPlaybackToolbar(onOpen: openPlayer, onPlus: handlePlusButtonTapped)
             }
 
             Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
                 ProfileView()
+                    .bottomPlaybackToolbar(onOpen: openPlayer, onPlus: handlePlusButtonTapped)
             }
         }
         .tint(.blue)

@@ -58,8 +58,9 @@ struct NowPlayingView: View {
                     )
                 }
 
-                if let song = player.currentSong {
-                    if showsFullScreenLyrics, page == .lyrics {
+                let song = player.currentSong ?? .placeholder
+                Group {
+                    if showsFullScreenLyrics, page == .lyrics, player.currentSong != nil {
                         fullScreenLyrics(for: song)
                     } else if usesExpandedLayout {
                         NowPlayingTabletView(
@@ -116,10 +117,6 @@ struct NowPlayingView: View {
                     } else {
                         portraitContent(for: song)
                     }
-                } else {
-                    ContentUnavailableView("ui.player.no_current_song", systemImage: "music.note")
-                        .foregroundStyle(.white)
-                }
 
                 if usesFullScreenTextPV,
                    showsTextPVLandscapeSuggestion,
