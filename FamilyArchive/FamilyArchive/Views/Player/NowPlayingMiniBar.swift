@@ -21,7 +21,7 @@ struct NowPlayingMiniBar: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
-        .padding(.bottom, 6)
+        .padding(.bottom, 4)
     }
 
     private var capsule: some View {
