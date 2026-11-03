@@ -20,8 +20,8 @@ struct NowPlayingMiniBar: View {
                 .frame(width: 0)
         }
         .frame(maxWidth: .infinity)
-        .padding(.leading, 16)
-        .padding(.trailing, 7)
+        .padding(.leading, 17)
+        .padding(.trailing, 14)
         .padding(.bottom, 4)
     }
 
