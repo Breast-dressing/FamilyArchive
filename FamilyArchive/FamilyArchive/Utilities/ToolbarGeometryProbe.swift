@@ -28,7 +28,7 @@ struct ToolbarProbe: UIViewRepresentable {
         }
 
         let bounds = window.bounds
-        print("[ToolbarProbe] window width=\(bounds.width) safeLeading=\(window.safeAreaInsets.leading) safeTrailing=\(window.safeAreaInsets.trailing)")
+        print("[ToolbarProbe] window width=\(bounds.width) safeLeading=\(window.safeAreaInsets.left) safeTrailing=\(window.safeAreaInsets.right)")
 
         var found = false
         func walk(_ view: UIView, depth: Int = 0) {
