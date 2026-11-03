@@ -53,7 +53,7 @@ struct NowPlayingMiniBar: View {
     }
 
     private var subtitle: String {
-        guard let song else { return "点击 ＋ 添加音乐" }
+        guard let song else { return "尚未播放" }
         return song.artists.map(\.name).joined(separator: " / ")
     }
 
@@ -75,7 +75,7 @@ struct NowPlayingMiniBar: View {
     }
 
     private var controls: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 10) {
             Button {
                 Task { await player.previous() }
             } label: {
@@ -89,8 +89,8 @@ struct NowPlayingMiniBar: View {
                 player.togglePlayback()
             } label: {
                 Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 26, height: 26)
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 24, height: 24)
             }
             .accessibilityLabel(player.isPlaying ? "暂停" : "播放")
 
@@ -98,14 +98,14 @@ struct NowPlayingMiniBar: View {
                 Task { await player.next() }
             } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .frame(width: 24, height: 24)
             }
             .accessibilityLabel("下一首")
 
             Button(action: onOpen) {
                 Image(systemName: "list.bullet")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .frame(width: 24, height: 24)
             }
             .accessibilityLabel("播放列表")
