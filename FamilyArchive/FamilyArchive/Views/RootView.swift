@@ -83,58 +83,37 @@ struct RootView: View {
 
     var body: some View {
         playerAwareTabs
+            .task(id: player.currentSong?.id) {
+                await synchronizeLyrics()
+            }
             .fullScreenCover(item: $playerPresentation) { _ in
-                NowPlayingView()
-                    .presentationBackground(.clear)
-                    .presentationContentInteraction(.resizes)
-                    .navigationTransition(
-                        .zoom(
-                            sourceID: playerTransitionID,
-                            in: playerTransitionNamespace
-                        )
-                    )
-                    .overlay(alignment: .topLeading) {
-                        if player.currentSong == nil {
-                            Button {
-                                playerPresentation = nil
-                            } label: {
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 36, height: 36)
-                                    .background(
-                                        Circle().fill(.white.opacity(0.14))
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.leading, 20)
-                            .padding(.top, 8)
-                            .accessibilityLabel("收起播放器")
-                        }
+                Group {
+                    if player.currentSong == nil {
+                        EmptyNowPlayingView()
+                    } else {
+                        NowPlayingView()
+                            .presentationBackground(.clear)
+                            .presentationContentInteraction(.resizes)
+                            .navigationTransition(
+                                .zoom(
+                                    sourceID: playerTransitionID,
+                                    in: playerTransitionNamespace
+                                )
+                            )
                     }
+                }
             }
     }
 
     private var playerAwareTabs: some View {
         tabs.tabViewBottomAccessory {
-            if player.currentSong != nil {
-                miniPlayer
-            } else {
-                EmptyPlayerBar {
-                    playerPresentation = .nowPlaying
-                }
-            }
+            NowPlayingMiniBar(
+                onOpen: { playerPresentation = .nowPlaying },
+                onPlus: { handlePlusButtonTapped() }
+            )
         }
     }
 
-    private var miniPlayer: some View {
-        MiniPlayerView(
-            artworkTransitionID: playerTransitionID,
-            artworkTransitionNamespace: playerTransitionNamespace
-        ) {
-            playerPresentation = .nowPlaying
-        }
-    }
 
     private func synchronizeLyrics() async {
         let song = player.currentSong
@@ -148,30 +127,18 @@ struct RootView: View {
         TabView(selection: $router.selectedTab) {
             Tab(RootTab.feed.title, systemImage: RootTab.feed.systemImage, value: RootTab.feed) {
                 FeedView()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBar
-                    }
             }
 
             Tab(RootTab.video.title, systemImage: RootTab.video.systemImage, value: RootTab.video) {
                 VideoView()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBar
-                    }
             }
 
             Tab(RootTab.music.title, systemImage: RootTab.music.systemImage, value: RootTab.music) {
                 MeloXMusicTabHost()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBar
-                    }
             }
 
             Tab(RootTab.more.title, systemImage: RootTab.more.systemImage, value: RootTab.more, role: .prominent) {
                 ProfileView()
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        bottomBar
-                    }
             }
         }
         .tint(.blue)
@@ -437,33 +404,6 @@ struct RootView: View {
         default:
             return AccessoryTransition.plus
         }
-    }
-
-    private var bottomBar: some View {
-        plusBar
-    }
-
-    private var plusBar: some View {
-        GlassEffectContainer(spacing: 10) {
-            HStack(spacing: 10) {
-                Spacer(minLength: 0)
-                Button {
-                    handlePlusButtonTapped()
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(.primary)
-                        .frame(width: 20, height: 20)
-                        .padding(12)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(.plain)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .accessibilityLabel("添加")
-            }
-        }
-        .padding(.horizontal, BottomToolbarLayout.horizontalInset)
-        .padding(.bottom, 6)
     }
 
     private func handlePlusButtonTapped() {
