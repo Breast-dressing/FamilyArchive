@@ -112,6 +112,26 @@ launch "Music root (search + date + plus)" -UIPreviewMusic
 sleep 6
 shot music_tab_ui.png
 
+# DEBUG 探针导出的系统 TabBar / 播放条真实框架，用于核对左右边距。
+echo "==> Bottom chrome geometry"
+for ((i = 0; i < 10; i++)); do
+  if [[ -f "$CONTAINER/Documents/BottomChromeGeometry.json" ]]; then
+    break
+  fi
+  sleep 1
+done
+if [[ -f "$CONTAINER/Documents/BottomChromeGeometry.json" ]]; then
+  cp "$CONTAINER/Documents/BottomChromeGeometry.json" "$ROOT/bottom_chrome_geometry.json"
+  cat "$ROOT/bottom_chrome_geometry.json"
+else
+  echo "warning: BottomChromeGeometry.json not produced" >&2
+fi
+
+# 同一画面叠加参考线：红 = 系统 TabBar，绿 = 播放胶囊，蓝 = ＋。
+launch "Music tab alignment guides" -UIPreviewMusic -UIPreviewGuides
+sleep 4
+shot music_tab_guides.png
+
 # 空状态下也能进播放器
 launch "Player empty state" -UIPreviewPlayerEmpty
 sleep 4

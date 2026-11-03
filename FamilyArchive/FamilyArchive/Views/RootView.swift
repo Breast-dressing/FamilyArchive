@@ -101,6 +101,9 @@ struct RootView: View {
 
     private var playerAwareTabs: some View {
         tabs
+            #if DEBUG
+            .background(BottomChromeProbe().frame(width: 0, height: 0))
+            #endif
     }
 
 

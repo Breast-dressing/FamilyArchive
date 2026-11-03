@@ -26,6 +26,8 @@ jobs:
           name: ui-review-screenshots
           path: |
             music_tab_ui.png
+            music_tab_guides.png
+            bottom_chrome_geometry.json
             player_empty_ui.png
             my_page_sections_ui.png
             fans_ui.png
