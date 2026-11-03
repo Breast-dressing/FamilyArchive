@@ -7,6 +7,13 @@ struct NowPlayingMiniBar: View {
     let onPlus: () -> Void
 
     @Environment(PlayerStore.self) private var player
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// Apple HIG 的标准布局边距：iPhone（compact width）= 16pt，iPad（regular width）= 20pt。
+    /// 系统 TabView 的内容同样按这组边距排版，所以底部工具栏直接用同一常量，不再靠视觉微调。
+    private var layoutMargin: CGFloat {
+        horizontalSizeClass == .regular ? 20 : 16
+    }
 
     private var song: Song? { player.currentSong }
 
@@ -20,8 +27,7 @@ struct NowPlayingMiniBar: View {
                 .frame(width: 0)
         }
         .frame(maxWidth: .infinity)
-        .padding(.leading, 16)
-        .padding(.trailing, 18)
+        .padding(.horizontal, layoutMargin)
         .padding(.bottom, 4)
     }
 
