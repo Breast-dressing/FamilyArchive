@@ -9,10 +9,13 @@ struct NowPlayingMiniBar: View {
     @Environment(PlayerStore.self) private var player
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    /// Apple HIG 的标准布局边距：iPhone（compact width）= 16pt，iPad（regular width）= 20pt。
-    /// 系统 TabView 的内容同样按这组边距排版，所以底部工具栏直接用同一常量，不再靠视觉微调。
+    /// iOS 26/27 浮动 TabBar 的左右边距：iPhone（compact width）= 21pt，
+    /// iPad（regular width）= 20pt。系统玻璃面板就落在这一组边距上，
+    /// 底部播放条沿用同一常量，胶囊左缘与「＋」右缘才能和 TabBar 对齐。
     private var layoutMargin: CGFloat {
-        horizontalSizeClass == .regular ? 20 : 16
+        horizontalSizeClass == .regular
+            ? BottomToolbarLayout.regularHorizontalInset
+            : BottomToolbarLayout.horizontalInset
     }
 
     private var song: Song? { player.currentSong }
@@ -25,8 +28,6 @@ struct NowPlayingMiniBar: View {
             plusButton
                 .fixedSize()
                 .recordPlaybackFrame(.plus)
-            Spacer(minLength: 0)
-                .frame(width: 0)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, layoutMargin)

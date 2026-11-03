@@ -201,7 +201,7 @@ private final class ProbeView: UIView {
             if view is UITabBar {
                 frames.append(view.convert(view.bounds, to: window))
                 frames.append(contentsOf: view.subviews
-                    .filter { $0.bounds.width > 120 && $0.bounds.height > 20 }
+                    .filter { $0.bounds.width > 40 && $0.bounds.height > 40 }
                     .map { $0.convert($0.bounds, to: window) })
             }
             for sub in view.subviews { walk(sub) }
