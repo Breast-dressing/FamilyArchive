@@ -13,11 +13,14 @@ struct NowPlayingMiniBar: View {
     var body: some View {
         HStack(spacing: 10) {
             capsule
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, alignment: .leading)
             plusButton
                 .fixedSize()
+            Spacer(minLength: 0)
+                .frame(width: 0)
         }
-        .padding(.horizontal, BottomToolbarLayout.horizontalInset)
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
         .padding(.bottom, 6)
     }
 
@@ -45,9 +48,9 @@ struct NowPlayingMiniBar: View {
 
             controls
         }
-        .padding(.leading, 6)
+        .padding(.leading, 10)
         .padding(.trailing, 8)
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .glassEffect(.regular.interactive(), in: Capsule())
     }
